@@ -70,3 +70,16 @@ def delete_where(**filters):
     params = {k: f"eq.{v}" for k, v in filters.items()}
     r = requests.delete(_base(), headers=_headers(), params=params, timeout=15)
     r.raise_for_status()
+
+
+def update_where(filters, changes):
+    """Édition ADMIN : met à jour (PATCH) les lignes correspondant aux filtres. Sert à RENOMMER
+    une région/système/planète (ex {'region':X,'system':Y} -> {'system':'NouveauNom'}).
+    Nécessite une policy UPDATE côté Supabase. Au moins un filtre requis."""
+    import requests
+    if not filters or not changes:
+        raise ValueError("update_where requiert des filtres et des changements")
+    params = {k: f"eq.{v}" for k, v in filters.items()}
+    h = _headers(); h["Prefer"] = "return=minimal"
+    r = requests.patch(_base(), headers=h, params=params, json=changes, timeout=15)
+    r.raise_for_status()

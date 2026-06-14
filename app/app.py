@@ -471,9 +471,26 @@ with tab6:
                                             {"region": rg, "system": sy, "planet": pl}))
                 asel = st.selectbox(T("mm_admin_target"), range(len(targets)),
                                     format_func=lambda i: targets[i][0], key="mm_admin_sel")
-                if st.button("🗑️ " + T("mm_admin_del"), key="mm_admin_del_b", type="primary"):
+                _filters = targets[asel][1]
+                _level = "planet" if "planet" in _filters else ("system" if "system" in _filters else "region")
+
+                ca, cb = st.columns(2)
+                # Renommer (UPDATE sur le champ le plus profond du filtre)
+                newname = ca.text_input(T("mm_admin_rename"), value=_filters[_level], key="mm_admin_newname")
+                if ca.button("✏️ " + T("mm_admin_renamebtn"), key="mm_admin_ren_b"):
+                    nn = newname.strip()
+                    if nn and nn != _filters[_level]:
+                        try:
+                            cloud_store.update_where(_filters, {_level: nn})
+                            fetch_shared.clear()
+                            st.success(T("mm_renamed"))
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f'{T("fail")} {e}')
+                # Supprimer
+                if cb.button("🗑️ " + T("mm_admin_del"), key="mm_admin_del_b", type="primary"):
                     try:
-                        cloud_store.delete_where(**targets[asel][1])
+                        cloud_store.delete_where(**_filters)
                         fetch_shared.clear()
                         st.success(T("mm_deleted"))
                         st.rerun()
