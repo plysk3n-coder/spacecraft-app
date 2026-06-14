@@ -12,8 +12,14 @@ import graph_data
 import world_data
 import discoveries
 import cloud_store
+import steam_auth
 
-st.set_page_config(page_title="SpaceCraft - Rentabilite", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="SpaceCraft - Rentabilite", page_icon="🚀", layout="wide",
+                   initial_sidebar_state="collapsed")
+# Masque entierement la barre laterale (langue -> drapeaux en haut ; parametres -> expander)
+st.markdown(
+    "<style>[data-testid='stSidebar'],[data-testid='stSidebarCollapsedControl']{display:none!important;}</style>",
+    unsafe_allow_html=True)
 
 
 @st.cache_data(show_spinner=False)
@@ -34,19 +40,27 @@ def load(overrides_key, lang):
     return items, recipes
 
 
-# --- langue d'abord (la sidebar est evaluee avant le corps) ---
-with st.sidebar:
-    langs = i18n.available_langs()
-    _default_lang = langs.index("fr") if "fr" in langs else 0
-    lang = st.selectbox(i18n.t("language", "en"), langs, index=_default_lang, format_func=lambda c: i18n.LANGS.get(c, c))
+# --- langue : drapeaux cliquables en haut de page ---
+_langs = i18n.available_langs()
+if st.session_state.get("lang") not in _langs:
+    st.session_state.lang = "fr" if "fr" in _langs else _langs[0]
+lang = st.session_state.lang
 T = lambda k: i18n.t(k, lang)
+
+_FLAGS = {"fr": "🇫🇷", "en": "🇬🇧"}
+_fcols = st.columns([1] * len(_langs) + [16])
+for _i, _code in enumerate(_langs):
+    if _fcols[_i].button(_FLAGS.get(_code, _code), key=f"flag_{_code}",
+                         help=i18n.LANGS.get(_code, _code),
+                         type="primary" if _code == lang else "secondary"):
+        st.session_state.lang = _code
+        st.rerun()
 
 st.title(T("title"))
 st.caption(T("caption"))
 
-# --- reste de la sidebar ---
-with st.sidebar:
-    st.header(T("settings"))
+# --- parametres (ex-barre laterale) dans un expander en haut de page ---
+with st.expander("⚙️ " + T("settings"), expanded=False):
     if extract_cdb.game_available():
         if st.button(T("reextract"), help=T("reextract_help")):
             try:
@@ -77,6 +91,10 @@ with st.sidebar:
         st.write(T("modified"))
         for i, p in st.session_state.overrides.items():
             st.write(f"- {items0[i]['name']} → {p}")
+
+# capture le retour de connexion Steam (OpenID) le plus tot possible, puis nettoie l'URL
+if steam_auth.configured():
+    steam_auth.current_user()
 
 overrides_key = tuple(sorted(st.session_state.get("overrides", {}).items()))
 items, recipes = load(overrides_key, lang)
@@ -242,10 +260,27 @@ with tab6:
         st.info(T("mm_local_note"))
         data = discoveries.load()
 
-    # pseudo (auteur) en mode partagé
+    # identité de l'auteur en mode partagé : Steam si configuré, sinon pseudo libre
     author = ""
     if shared:
-        author = st.text_input(T("mm_pseudo"), value=st.session_state.get("mm_author", ""), key="mm_author").strip()
+        if steam_auth.configured():
+            user = steam_auth.current_user()
+            if user:
+                author = user["name"]
+                ci, co = st.columns([5, 1])
+                ci.success(f'🎮 {T("mm_steam_as")} **{author}**')
+                if co.button(T("mm_logout"), key="mm_logout_b"):
+                    steam_auth.logout()
+                    st.rerun()
+            else:
+                st.markdown(
+                    f'<a href="{steam_auth.login_url()}" target="_self" '
+                    'style="display:inline-block;padding:.45rem 1rem;background:#1b2838;color:#66c0f4;'
+                    'border-radius:6px;text-decoration:none;font-weight:600;">🎮 ' + T("mm_steam_login") + '</a>',
+                    unsafe_allow_html=True)
+                st.caption(T("mm_need_login"))
+        else:
+            author = st.text_input(T("mm_pseudo"), value=st.session_state.get("mm_author", ""), key="mm_author").strip()
 
     # --- Ajout d'une découverte ---
     st.subheader(T("mymap_add"))
@@ -272,7 +307,7 @@ with tab6:
     res_sel = st.multiselect(T("mm_resources"), mineable, format_func=resname, key="mm_res")
     if st.button(T("mm_addbtn"), type="primary"):
         if shared and not author:
-            st.warning(T("mm_need_pseudo"))
+            st.warning(T("mm_need_login") if steam_auth.configured() else T("mm_need_pseudo"))
         elif region and system and planet:
             try:
                 if shared:
