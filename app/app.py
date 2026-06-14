@@ -28,7 +28,7 @@ def load_sheets():
 
 
 @st.cache_data(show_spinner=False)
-def load_world():
+def load_world(_schema_v=2):  # _schema_v : bump pour invalider le cache quand world_data change
     return world_data.build_world(cdb_model.load_cdb())
 
 
@@ -248,7 +248,7 @@ def res_translations(lang):
 with tab6:
     st.caption(T("mymap_help"))
     w = load_world()
-    deposits = w["deposits"]
+    deposits = w.get("deposits", {})
     _rtr = res_translations(lang)
     dep_name = lambda d: _rtr.get(d) or deposits.get(d, {}).get("name", d)
     # nom d'affichage : gisement traduit ; sinon item (compat anciennes entrées) ; sinon id brut
