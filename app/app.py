@@ -70,39 +70,6 @@ for _i, _code in enumerate(_langs):
 st.title(T("title"))
 st.caption(T("caption"))
 
-# --- parametres (ex-barre laterale) dans un expander en haut de page ---
-with st.expander("⚙️ " + T("settings"), expanded=False):
-    if extract_cdb.game_available():
-        if st.button(T("reextract"), help=T("reextract_help")):
-            try:
-                extract_cdb.extract_all(langs=("fr",))
-                st.cache_data.clear()
-                st.success(T("reextracted"))
-            except Exception as e:
-                st.error(f'{T("fail")} {e}')
-
-    st.divider()
-    st.subheader(T("adjust_price"))
-    st.caption(T("adjust_help"))
-    if "overrides" not in st.session_state:
-        st.session_state.overrides = {}
-    sheets0 = cdb_model.load_cdb()
-    items0, _ = cdb_model.build(sheets0, tr=i18n.load_translations(lang))
-    names = sorted(items0.keys(), key=lambda i: items0[i]["name"])
-    label = {i: f'{items0[i]["name"]} ({items0[i]["price"]})' for i in names}
-    sel = st.selectbox(T("item"), ["—"] + names, format_func=lambda i: "—" if i == "—" else label[i])
-    if sel != "—":
-        newp = st.number_input(f'{T("new_price")} {items0[sel]["name"]}', value=float(items0[sel]["price"]), step=0.01)
-        c1, c2 = st.columns(2)
-        if c1.button(T("apply")):
-            st.session_state.overrides[sel] = newp
-        if c2.button(T("reset_all")):
-            st.session_state.overrides = {}
-    if st.session_state.overrides:
-        st.write(T("modified"))
-        for i, p in st.session_state.overrides.items():
-            st.write(f"- {items0[i]['name']} → {p}")
-
 # --- connexion Steam : persistee via cookie signe (resiste au F5) ---
 AUTH_COOKIE = "sc_auth"
 cookies = stx.CookieManager(key="sc_cookies")
@@ -120,6 +87,40 @@ if steam_auth.configured():
         _restored = steam_auth.parse_token(cookies.get(AUTH_COOKIE) or "")
         if _restored:
             st.session_state["steam_user"] = _restored
+
+# --- parametres (ADMIN uniquement) : re-extraction + ajuster un prix ---
+if steam_auth.is_admin(st.session_state.get("steam_user")):
+    with st.expander("⚙️ " + T("settings"), expanded=False):
+        if extract_cdb.game_available():
+            if st.button(T("reextract"), help=T("reextract_help")):
+                try:
+                    extract_cdb.extract_all(langs=("fr",))
+                    st.cache_data.clear()
+                    st.success(T("reextracted"))
+                except Exception as e:
+                    st.error(f'{T("fail")} {e}')
+
+        st.divider()
+        st.subheader(T("adjust_price"))
+        st.caption(T("adjust_help"))
+        if "overrides" not in st.session_state:
+            st.session_state.overrides = {}
+        sheets0 = cdb_model.load_cdb()
+        items0, _ = cdb_model.build(sheets0, tr=i18n.load_translations(lang))
+        names = sorted(items0.keys(), key=lambda i: items0[i]["name"])
+        label = {i: f'{items0[i]["name"]} ({items0[i]["price"]})' for i in names}
+        sel = st.selectbox(T("item"), ["—"] + names, format_func=lambda i: "—" if i == "—" else label[i])
+        if sel != "—":
+            newp = st.number_input(f'{T("new_price")} {items0[sel]["name"]}', value=float(items0[sel]["price"]), step=0.01)
+            c1, c2 = st.columns(2)
+            if c1.button(T("apply")):
+                st.session_state.overrides[sel] = newp
+            if c2.button(T("reset_all")):
+                st.session_state.overrides = {}
+        if st.session_state.overrides:
+            st.write(T("modified"))
+            for i, p in st.session_state.overrides.items():
+                st.write(f"- {items0[i]['name']} → {p}")
 
 overrides_key = tuple(sorted(st.session_state.get("overrides", {}).items()))
 items, recipes = load(overrides_key, lang)
@@ -307,7 +308,6 @@ with tab5:
                                        for s in secs]), hide_index=True, width="stretch")
 
 with tab6:
-    st.caption(T("mymap_help"))
     if shared:
         st.success(T("mm_shared_on"))
         if map_err:
