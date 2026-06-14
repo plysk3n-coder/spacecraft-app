@@ -89,6 +89,8 @@ UI = {
     "mm_steam_as":  {"fr": "Connecté en tant que", "en": "Signed in as"},
     "mm_logout":    {"fr": "Déconnexion", "en": "Sign out"},
     "mm_need_login":{"fr": "Connecte-toi avec Steam pour contribuer à la carte.", "en": "Sign in through Steam to contribute to the map."},
+    "mm_steam_required": {"fr": "👀 Lecture libre pour tous. ✍️ L'écriture nécessite la connexion Steam (pas encore configurée).",
+                          "en": "👀 Reading is open to all. ✍️ Writing requires Steam sign-in (not configured yet)."},
     "where_help":   {"fr": "Choisis un minerai/une ressource → les gisements qui le donnent et les secteurs où chercher.",
                      "en": "Pick an ore/resource → the deposits that drop it and the sectors to search."},
     "select_res":   {"fr": "Minerai / ressource", "en": "Ore / resource"},

@@ -280,7 +280,7 @@ with tab6:
                     unsafe_allow_html=True)
                 st.caption(T("mm_need_login"))
         else:
-            author = st.text_input(T("mm_pseudo"), value=st.session_state.get("mm_author", ""), key="mm_author").strip()
+            st.warning(T("mm_steam_required"))
 
     # --- Ajout d'une découverte ---
     st.subheader(T("mymap_add"))
@@ -307,7 +307,7 @@ with tab6:
     res_sel = st.multiselect(T("mm_resources"), mineable, format_func=resname, key="mm_res")
     if st.button(T("mm_addbtn"), type="primary"):
         if shared and not author:
-            st.warning(T("mm_need_login") if steam_auth.configured() else T("mm_need_pseudo"))
+            st.warning(T("mm_need_login") if steam_auth.configured() else T("mm_steam_required"))
         elif region and system and planet:
             try:
                 if shared:
@@ -356,7 +356,9 @@ with tab6:
                 for sy, syd in rgd.get("systems", {}).items():
                     for pl in syd.get("planets", {}):
                         triples.append((rg, sy, pl))
-            if triples:
+            if triples and shared and not author:
+                st.caption(T("mm_need_login"))
+            elif triples:
                 if shared:
                     st.caption(T("mm_del_shared_note"))
                 dsel = st.selectbox(" ", range(len(triples)), key="mm_delsel",
