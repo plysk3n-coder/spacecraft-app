@@ -11,24 +11,33 @@ _COLORS = {
 
 # Stations a EXCLURE de la production "normale" (recyclage = inputs a prix 0, pas une vraie chaine)
 _EXCLUDE_WHERE = {"Workshop_Recycle", "Workshop_Uncraftable", ""}
+# unlockType de la recette de BASE (dispo par defaut). Les autres (1=Unique BP, 2=Random BP, 4=Study)
+# sont des blueprints a debloquer -> a ne PAS preferer dans les chaines (sinon on affiche du fil en
+# titane/fer alors que la recette de base est le cuivre). cf. _candidates.
+_BASE_UNLOCK = 0
 
 
 def _craft_index(sheets):
-    """item_id -> liste de (recipe_id, [(in_item, qty)], out_qty, where)."""
+    """item_id -> liste de (recipe_id, [(in_item, qty)], out_qty, where, unlock)."""
     produced_by = {}
     for c in cdb_model._lines(sheets, "craft"):
         where = c.get("where", "")
+        unlock = c.get("unlockType", 0)
         ins = [(i.get("item"), int(i.get("qty", 1) or 1)) for i in (c.get("inputs") or [])]
         for o in (c.get("outputs") or []):
             oq = int(o.get("qty", 1) or 1)
-            produced_by.setdefault(o.get("item"), []).append((c.get("id"), ins, oq, where))
+            produced_by.setdefault(o.get("item"), []).append((c.get("id"), ins, oq, where, unlock))
     return produced_by
 
 
 def _candidates(recs):
-    """Recettes de production normale (hors recyclage) ; sinon tout (fallback)."""
+    """Recettes utilisables pour une chaine, par ordre de priorite :
+    1) recettes de BASE (unlockType=0, hors recyclage) = ce que le joueur a par defaut ;
+    2) sinon recettes normales (hors recyclage), blueprints inclus ;
+    3) sinon tout (fallback : recyclage/demantelement)."""
     norm = [r for r in recs if r[3] not in _EXCLUDE_WHERE]
-    return norm or recs
+    base = [r for r in norm if r[4] == _BASE_UNLOCK]
+    return base or norm or recs
 
 
 def best_recipes(sheets, items):
@@ -45,7 +54,7 @@ def best_recipes(sheets, items):
         if not recs or i in inprog:
             return price(i)  # brut, ou cycle coupe
         inprog.add(i)
-        best = min(sum(unit_cost(ii) * q for ii, q in ins) / (oq or 1) for _, ins, oq, _w in _candidates(recs))
+        best = min(sum(unit_cost(ii) * q for ii, q in ins) / (oq or 1) for _, ins, oq, _w, _u in _candidates(recs))
         inprog.discard(i)
         memo[i] = best
         return best
