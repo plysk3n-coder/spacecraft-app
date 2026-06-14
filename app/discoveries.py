@@ -64,6 +64,20 @@ def remove_planet(data, region, system, planet):
         pass
 
 
+def from_flat(flat):
+    """Construit l'arbre {regions:...} a partir de lignes plates
+    (region, system, planet, resource) — ex. depuis la base communautaire Supabase."""
+    data = empty()
+    for r in flat or []:
+        rg, sy, pl, res = r.get("region"), r.get("system"), r.get("planet"), r.get("resource")
+        if not (rg and sy and pl):
+            continue
+        add_planet(data, rg, sy, pl)
+        if res:
+            add_resources(data, rg, sy, pl, [res])
+    return data
+
+
 def rows(data):
     """Lignes a plat pour affichage en arbre : {depth, kind, name, resources}."""
     out = []

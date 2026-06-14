@@ -11,6 +11,7 @@ import i18n
 import graph_data
 import world_data
 import discoveries
+import cloud_store
 
 st.set_page_config(page_title="SpaceCraft - Rentabilite", page_icon="🚀", layout="wide")
 
@@ -216,12 +217,35 @@ with tab5:
                                         T("col_reslevel"): w["sector_reslevel"].get(s), T("col_req"): _req(s)}
                                        for s in secs]), hide_index=True, width="stretch")
 
+@st.cache_data(ttl=20, show_spinner=False)
+def fetch_shared():
+    return cloud_store.fetch_all()
+
+
 with tab6:
     st.caption(T("mymap_help"))
-    data = discoveries.load()
     w = load_world()
     mineable = sorted(w["item_sources"].keys(), key=lambda i: items.get(i, {}).get("name", i))
     resname = lambda i: items.get(i, {}).get("name", i)
+
+    shared = cloud_store.available()
+    load_err = None
+    if shared:
+        st.success(T("mm_shared_on"))
+        try:
+            data = discoveries.from_flat(fetch_shared())
+        except Exception as e:
+            load_err = e
+            data = discoveries.empty()
+            st.error(f'{T("mm_shared_err")} {e}')
+    else:
+        st.info(T("mm_local_note"))
+        data = discoveries.load()
+
+    # pseudo (auteur) en mode partagé
+    author = ""
+    if shared:
+        author = st.text_input(T("mm_pseudo"), value=st.session_state.get("mm_author", ""), key="mm_author").strip()
 
     # --- Ajout d'une découverte ---
     st.subheader(T("mymap_add"))
@@ -247,20 +271,30 @@ with tab6:
 
     res_sel = st.multiselect(T("mm_resources"), mineable, format_func=resname, key="mm_res")
     if st.button(T("mm_addbtn"), type="primary"):
-        if region and system and planet:
-            discoveries.add_resources(data, region, system, planet, res_sel)
-            discoveries.save(data)
-            st.success(T("mm_added"))
-            st.rerun()
+        if shared and not author:
+            st.warning(T("mm_need_pseudo"))
+        elif region and system and planet:
+            try:
+                if shared:
+                    cloud_store.add(region, system, planet, res_sel, author)
+                    fetch_shared.clear()
+                else:
+                    discoveries.add_resources(data, region, system, planet, res_sel)
+                    discoveries.save(data)
+                st.success(T("mm_added"))
+                st.rerun()
+            except Exception as e:
+                st.error(f'{T("fail")} {e}')
         else:
             st.warning(T("mm_need"))
 
     # --- Journal (arbre) ---
     st.divider()
-    st.subheader(T("mymap_log"))
+    st.subheader(T("mymap_log_shared") if shared else T("mymap_log"))
     rws = discoveries.rows(data)
     if not rws:
-        st.info(T("mm_empty"))
+        if not load_err:
+            st.info(T("mm_empty"))
     else:
         dfm = pd.DataFrame([{
             T("col_place"): ("　" * r["depth"] + ("└ " if r["depth"] else "")) + r["name"],
@@ -280,35 +314,44 @@ with tab6:
                 st.dataframe(pd.DataFrame([{T("mm_region2"): rg, T("mm_system2"): sy, T("mm_planet2"): pl}
                                            for rg, sy, pl in hits]), hide_index=True, width="stretch")
 
-        # --- Supprimer une planète (corriger une erreur) ---
+        # --- Supprimer une planète (chacun ses entrées en mode partagé) ---
         with st.expander(T("mm_del")):
-            flat = [(r["name"],) for r in rws if r["kind"] == "planet"]
             triples = []
             for rg, rgd in data["regions"].items():
                 for sy, syd in rgd.get("systems", {}).items():
                     for pl in syd.get("planets", {}):
                         triples.append((rg, sy, pl))
             if triples:
+                if shared:
+                    st.caption(T("mm_del_shared_note"))
                 dsel = st.selectbox(" ", range(len(triples)), key="mm_delsel",
                                     format_func=lambda i: f"{triples[i][0]} › {triples[i][1]} › {triples[i][2]}")
                 if st.button(T("mm_delbtn"), key="mm_delbtn_b"):
                     rg, sy, pl = triples[dsel]
-                    discoveries.remove_planet(data, rg, sy, pl)
-                    discoveries.save(data)
-                    st.success(T("mm_deleted"))
-                    st.rerun()
+                    try:
+                        if shared:
+                            cloud_store.delete_planet(rg, sy, pl, author or "anon")
+                            fetch_shared.clear()
+                        else:
+                            discoveries.remove_planet(data, rg, sy, pl)
+                            discoveries.save(data)
+                        st.success(T("mm_deleted"))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f'{T("fail")} {e}')
 
-    # --- Export / Import (sauvegarde) ---
+    # --- Export (sauvegarde) + Import (local seulement) ---
     st.divider()
     ce, ci = st.columns(2)
     ce.download_button(T("mm_export"), data=json.dumps(data, ensure_ascii=False, indent=2),
                        file_name="my_discoveries.json", mime="application/json")
-    up = ci.file_uploader(T("mm_import"), type="json", key="mm_up")
-    if up is not None:
-        try:
-            newd = json.load(up)
-            discoveries.save(newd)
-            st.success(T("mm_imported"))
-            st.rerun()
-        except Exception as e:
-            st.error(f'{T("fail")} {e}')
+    if not shared:
+        up = ci.file_uploader(T("mm_import"), type="json", key="mm_up")
+        if up is not None:
+            try:
+                newd = json.load(up)
+                discoveries.save(newd)
+                st.success(T("mm_imported"))
+                st.rerun()
+            except Exception as e:
+                st.error(f'{T("fail")} {e}')
