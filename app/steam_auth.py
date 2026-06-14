@@ -108,6 +108,12 @@ def logout():
     st.session_state.pop("steam_user", None)
 
 
+def is_admin(user):
+    """True si l'utilisateur connecte est l'admin (SteamID == [steam].admin_id dans les secrets)."""
+    aid = _cfg().get("admin_id")
+    return bool(user and aid and str(user.get("id")) == str(aid))
+
+
 # --- jeton signe pour persister la connexion dans un cookie (resiste au F5) ---
 
 def _secret():

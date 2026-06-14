@@ -29,7 +29,7 @@ def load_sheets():
 
 
 @st.cache_data(show_spinner=False)
-def load_world(_schema_v=2):  # _schema_v : bump pour invalider le cache quand world_data change
+def load_world(_schema_v=3):  # _schema_v : bump pour invalider le cache quand world_data change
     return world_data.build_world(cdb_model.load_cdb())
 
 
@@ -255,15 +255,20 @@ with tab4:
         nodes, edges = graph_data.universe_graph(sheets, world=world, items=items, res_label=T("u_resources"))
         # superpose les découvertes communautaires (systèmes/planètes ajoutés par les joueurs)
         name2sec = {nm: sid for sid, nm in world["sector_name"].items()}
+        sys_name2id = world.get("system_name2id", {})
         n_disc = 0
         for rg, rgd in map_data.get("regions", {}).items():
             rid = name2sec.get(rg, "drg:" + rg)
             if rid not in nodes:
                 nodes[rid] = {"label": rg, "title": rg, "kind": "sector"}
             for sy, syd in rgd.get("systems", {}).items():
-                sid = f"dsys:{rg}/{sy}"
-                nodes[sid] = {"label": sy, "title": f"{sy} ({T('mm_k_system')})", "kind": "disc_system"}
-                edges.append((rid, sid, ""))
+                # réutilise le nœud système du cdb si même nom (évite un doublon, ex "Sawma")
+                if sys_name2id.get(sy) in nodes:
+                    sid = sys_name2id[sy]
+                else:
+                    sid = f"dsys:{rg}/{sy}"
+                    nodes[sid] = {"label": sy, "title": f"{sy} ({T('mm_k_system')})", "kind": "disc_system"}
+                    edges.append((rid, sid, ""))
                 for pl, pld in syd.get("planets", {}).items():
                     pid = f"dpl:{rg}/{sy}/{pl}"
                     deps = pld.get("resources", [])
@@ -319,7 +324,9 @@ with tab6:
             if user:
                 author = user["name"]
                 ci, co = st.columns([5, 1])
-                ci.success(f'🎮 {T("mm_steam_as")} **{author}**')
+                _badge = f'🎮 {T("mm_steam_as")} **{author}**'
+                _badge += "  ·  🛠️ admin" if steam_auth.is_admin(user) else f'  ·  SteamID `{user.get("id")}`'
+                ci.success(_badge)
                 if co.button(T("mm_logout"), key="mm_logout_b"):
                     steam_auth.logout()
                     try:
@@ -350,14 +357,19 @@ with tab6:
         rsel = st.selectbox(T("mm_region"), ropts, index=_idx(ropts, _qp.get("rg", "")), key="mm_region_sel")
         rnew = st.text_input(T("mm_region_new"), key="mm_region_new")
         region = rnew.strip() or ("" if rsel == "—" else rsel)
+    _cdb_uni = _world0.get("named_universe", {})
     with c2:
-        sys_known = sorted(data["regions"].get(region, {}).get("systems", {}).keys()) if region else []
+        comm_sys = data["regions"].get(region, {}).get("systems", {}).keys() if region else []
+        cdb_sys = _cdb_uni.get(region, {}).keys() if region else []
+        sys_known = sorted(set(comm_sys) | set(cdb_sys))
         sopts = ["—"] + sys_known
         ssel = st.selectbox(T("mm_system"), sopts, index=_idx(sopts, _qp.get("sy", "")), key="mm_system_sel")
         snew = st.text_input(T("mm_system_new"), key="mm_system_new")
         system = snew.strip() or ("" if ssel == "—" else ssel)
     with c3:
-        pl_known = sorted(data["regions"].get(region, {}).get("systems", {}).get(system, {}).get("planets", {}).keys()) if (region and system) else []
+        comm_pl = data["regions"].get(region, {}).get("systems", {}).get(system, {}).get("planets", {}).keys() if (region and system) else []
+        cdb_pl = _cdb_uni.get(region, {}).get(system, []) if (region and system) else []
+        pl_known = sorted(set(comm_pl) | set(cdb_pl))
         psel = st.selectbox(T("mm_planet"), ["—"] + pl_known, key="mm_planet_sel")
         pnew = st.text_input(T("mm_planet_new"), key="mm_planet_new")
         planet = pnew.strip() or ("" if psel == "—" else psel)
@@ -440,6 +452,29 @@ with tab6:
                         else:
                             discoveries.remove_planet(data, rg, sy, pl)
                             discoveries.save(data)
+                        st.success(T("mm_deleted"))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f'{T("fail")} {e}')
+
+        # --- Menu ADMIN (visible uniquement par l'admin) : supprimer n'importe quoi ---
+        if shared and steam_auth.is_admin(st.session_state.get("steam_user")):
+            with st.expander("🛠️ " + T("mm_admin"), expanded=False):
+                st.caption(T("mm_admin_note"))
+                targets = []  # (libellé, filtres)
+                for rg, rgd in data["regions"].items():
+                    targets.append((f'[{T("mm_k_region")}] {rg}', {"region": rg}))
+                    for sy, syd in rgd.get("systems", {}).items():
+                        targets.append((f'[{T("mm_k_system")}] {rg} › {sy}', {"region": rg, "system": sy}))
+                        for pl in syd.get("planets", {}):
+                            targets.append((f'[{T("mm_k_planet")}] {rg} › {sy} › {pl}',
+                                            {"region": rg, "system": sy, "planet": pl}))
+                asel = st.selectbox(T("mm_admin_target"), range(len(targets)),
+                                    format_func=lambda i: targets[i][0], key="mm_admin_sel")
+                if st.button("🗑️ " + T("mm_admin_del"), key="mm_admin_del_b", type="primary"):
+                    try:
+                        cloud_store.delete_where(**targets[asel][1])
+                        fetch_shared.clear()
                         st.success(T("mm_deleted"))
                         st.rerun()
                     except Exception as e:

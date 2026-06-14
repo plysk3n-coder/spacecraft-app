@@ -58,8 +58,15 @@ def add(region, system, planet, resources, author):
 
 def delete_planet(region, system, planet, author):
     """Supprime les lignes de CET auteur pour cette planete (chacun gere ses propres entrees)."""
+    delete_where(region=region, system=system, planet=planet, author=author)
+
+
+def delete_where(**filters):
+    """Suppression ADMIN : supprime toutes les lignes correspondant aux filtres (sans contrainte
+    d'auteur). Au moins un filtre requis (PostgREST refuse un DELETE sans filtre)."""
     import requests
-    params = {"region": f"eq.{region}", "system": f"eq.{system}",
-              "planet": f"eq.{planet}", "author": f"eq.{author}"}
+    if not filters:
+        raise ValueError("delete_where requiert au moins un filtre")
+    params = {k: f"eq.{v}" for k, v in filters.items()}
     r = requests.delete(_base(), headers=_headers(), params=params, timeout=15)
     r.raise_for_status()

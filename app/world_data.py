@@ -81,9 +81,29 @@ def build_world(sheets):
                       "items": [it.get("item") for it in (r.get("items") or []) if it.get("item")]}
                 for rid, r in resources.items() if (r.get("items"))}
 
+    # hierarchie NOMMEE authored du cdb : sector_name -> {system_name -> [lieux]} (+ map nom->id systeme)
+    sysn = {l["id"]: (l.get("name") or l["id"]) for l in cdb_model._lines(sheets, "system")}
+    pln = {l["id"]: (l.get("name") or l["id"]) for l in cdb_model._lines(sheets, "planet")}
+    insn = {l["id"]: (l.get("name") or l["id"]) for l in cdb_model._lines(sheets, "instance")}
+    _clean = lambda x: x.replace("_", " ") if isinstance(x, str) else x
+    named_universe, system_name2id = {}, {}
+    for sid, s in sectors.items():
+        d = named_universe.setdefault(s.get("name", sid), {})
+        for c in (s.get("content") or []):
+            sy = c.get("system")
+            if not sy:
+                continue
+            syname = sysn.get(sy, sy)
+            system_name2id[syname] = sy
+            kids = d.setdefault(syname, [])
+            for k in (_clean(pln.get(c.get("planet"))), _clean(c.get("object")), _clean(insn.get(c.get("instance")))):
+                if k and k not in kids:
+                    kids.append(k)
+
     return {"sector_items": sector_items, "sector_res": sector_res,
             "item_sectors": item_sectors, "item_sources": item_sources,
             "deposits": deposits,
+            "named_universe": named_universe, "system_name2id": system_name2id,
             "sector_name": {sid: s.get("name", sid) for sid, s in sectors.items()},
             "sector_reslevel": {sid: s.get("resLevel") for sid, s in sectors.items()},
             "sector_req": {sid: (s.get("props", {}).get("requirements") or []) for sid, s in sectors.items()}}
