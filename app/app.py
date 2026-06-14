@@ -240,11 +240,20 @@ def fetch_shared():
     return cloud_store.fetch_all()
 
 
+@st.cache_data(show_spinner=False)
+def res_translations(lang):
+    return i18n.load_translations(lang).get("resource", {})
+
+
 with tab6:
     st.caption(T("mymap_help"))
     w = load_world()
-    mineable = sorted(w["item_sources"].keys(), key=lambda i: items.get(i, {}).get("name", i))
-    resname = lambda i: items.get(i, {}).get("name", i)
+    deposits = w["deposits"]
+    _rtr = res_translations(lang)
+    dep_name = lambda d: _rtr.get(d) or deposits.get(d, {}).get("name", d)
+    # nom d'affichage : gisement traduit ; sinon item (compat anciennes entrées) ; sinon id brut
+    resname = lambda x: dep_name(x) if x in deposits else items.get(x, {}).get("name", x)
+    dep_ids = sorted(deposits.keys(), key=dep_name)
 
     shared = cloud_store.available()
     load_err = None
@@ -300,7 +309,7 @@ with tab6:
         pnew = st.text_input(T("mm_planet_new"), key="mm_planet_new")
         planet = pnew.strip() or ("" if psel == "—" else psel)
 
-    res_sel = st.multiselect(T("mm_resources"), mineable, format_func=resname, key="mm_res")
+    res_sel = st.multiselect(T("mm_resources"), dep_ids, format_func=dep_name, key="mm_res")
     if st.button(T("mm_addbtn"), type="primary"):
         if shared and not author:
             st.warning(T("mm_need_login") if steam_auth.configured() else T("mm_steam_required"))

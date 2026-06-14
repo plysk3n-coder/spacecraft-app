@@ -76,8 +76,14 @@ def build_world(sheets):
                     "qtyMin": it.get("qtyMin"), "qtyMax": it.get("qtyMax"),
                 })
 
+    # gisements (resource) minables : id -> {name EN, items de sortie}
+    deposits = {rid: {"name": r.get("name", rid),
+                      "items": [it.get("item") for it in (r.get("items") or []) if it.get("item")]}
+                for rid, r in resources.items() if (r.get("items"))}
+
     return {"sector_items": sector_items, "sector_res": sector_res,
             "item_sectors": item_sectors, "item_sources": item_sources,
+            "deposits": deposits,
             "sector_name": {sid: s.get("name", sid) for sid, s in sectors.items()},
             "sector_reslevel": {sid: s.get("resLevel") for sid, s in sectors.items()},
             "sector_req": {sid: (s.get("props", {}).get("requirements") or []) for sid, s in sectors.items()}}
