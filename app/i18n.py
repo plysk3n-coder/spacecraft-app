@@ -43,7 +43,7 @@ UI = {
     "tab_craftmap": {"fr": "🕸️ Chaînes de craft", "en": "🕸️ Craft chains"},
     "tab_universe": {"fr": "🌌 Univers", "en": "🌌 Universe"},
     "tab_where":    {"fr": "🔍 Où trouver", "en": "🔍 Where to find"},
-    "tab_mymap":    {"fr": "🗺️ Ma carte", "en": "🗺️ My map"},
+    "tab_mymap":    {"fr": "🌍 Carte communautaire", "en": "🌍 Community map"},
     "mymap_help":   {"fr": "Ton carnet de découvertes (privé, enregistré localement sur ton PC). Le monde étant généré procéduralement, ces infos ne sont pas dans le jeu extrait : ajoute-les au fil de l'exploration. Région → Système → Planète → ressources.",
                      "en": "Your discovery log (private, saved locally on your PC). The world is procedurally generated so this isn't in the extracted data: add it as you explore. Region → System → Planet → resources."},
     "mymap_add":    {"fr": "➕ Ajouter une découverte", "en": "➕ Add a discovery"},
