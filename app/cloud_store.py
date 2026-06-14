@@ -80,6 +80,10 @@ def update_where(filters, changes):
     if not filters or not changes:
         raise ValueError("update_where requiert des filtres et des changements")
     params = {k: f"eq.{v}" for k, v in filters.items()}
-    h = _headers(); h["Prefer"] = "return=minimal"
+    h = _headers(); h["Prefer"] = "return=representation"  # renvoie les lignes -> on peut compter
     r = requests.patch(_base(), headers=h, params=params, json=changes, timeout=15)
     r.raise_for_status()
+    try:
+        return len(r.json())  # nb de lignes modifiees (0 = policy UPDATE manquante ou cible introuvable)
+    except Exception:
+        return 0

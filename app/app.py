@@ -481,10 +481,13 @@ with tab6:
                     nn = newname.strip()
                     if nn and nn != _filters[_level]:
                         try:
-                            cloud_store.update_where(_filters, {_level: nn})
-                            fetch_shared.clear()
-                            st.success(T("mm_renamed"))
-                            st.rerun()
+                            n_upd = cloud_store.update_where(_filters, {_level: nn})
+                            if n_upd:
+                                fetch_shared.clear()
+                                st.success(f'{T("mm_renamed")} ({n_upd})')
+                                st.rerun()
+                            else:
+                                st.warning(T("mm_update_none"))
                         except Exception as e:
                             st.error(f'{T("fail")} {e}')
                 # Supprimer

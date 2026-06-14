@@ -99,6 +99,8 @@ UI = {
     "mm_admin_rename": {"fr": "Renommer en", "en": "Rename to"},
     "mm_admin_renamebtn": {"fr": "Renommer", "en": "Rename"},
     "mm_renamed":   {"fr": "Renommé.", "en": "Renamed."},
+    "mm_update_none": {"fr": "0 ligne modifiée → la policy UPDATE Supabase est probablement absente. Exécute dans le SQL Editor : create policy \"update\" on discoveries for update using (true) with check (true);",
+                       "en": "0 rows changed → the Supabase UPDATE policy is likely missing. Run in SQL Editor: create policy \"update\" on discoveries for update using (true) with check (true);"},
     "where_help":   {"fr": "Choisis un minerai/une ressource → les gisements qui le donnent et les secteurs où chercher.",
                      "en": "Pick an ore/resource → the deposits that drop it and the sectors to search."},
     "select_res":   {"fr": "Minerai / ressource", "en": "Ore / resource"},
