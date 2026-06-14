@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 .streamlit/secrets.toml
 .DS_Store
+my_discoveries.json

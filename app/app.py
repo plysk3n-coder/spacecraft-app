@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, sys
+import os, sys, json
 import pandas as pd
 import streamlit as st
 
@@ -10,6 +10,7 @@ import extract_cdb
 import i18n
 import graph_data
 import world_data
+import discoveries
 
 st.set_page_config(page_title="SpaceCraft - Rentabilite", page_icon="🚀", layout="wide")
 
@@ -80,7 +81,7 @@ overrides_key = tuple(sorted(st.session_state.get("overrides", {}).items()))
 items, recipes = load(overrides_key, lang)
 df = pd.DataFrame(recipes)
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs([T("tab_recipes"), T("tab_items"), T("tab_craftmap"), T("tab_universe"), T("tab_where")])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([T("tab_recipes"), T("tab_items"), T("tab_craftmap"), T("tab_universe"), T("tab_where"), T("tab_mymap")])
 
 with tab1:
     c = st.columns([2, 1, 1, 1])
@@ -214,3 +215,100 @@ with tab5:
             st.dataframe(pd.DataFrame([{T("col_sector"): w["sector_name"].get(s, s),
                                         T("col_reslevel"): w["sector_reslevel"].get(s), T("col_req"): _req(s)}
                                        for s in secs]), hide_index=True, width="stretch")
+
+with tab6:
+    st.caption(T("mymap_help"))
+    data = discoveries.load()
+    w = load_world()
+    mineable = sorted(w["item_sources"].keys(), key=lambda i: items.get(i, {}).get("name", i))
+    resname = lambda i: items.get(i, {}).get("name", i)
+
+    # --- Ajout d'une découverte ---
+    st.subheader(T("mymap_add"))
+    regions_known = sorted(data["regions"].keys())
+    sectors_cdb = sorted(set(w["sector_name"].values()))
+    region_opts = regions_known + [s for s in sectors_cdb if s not in regions_known]
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        rsel = st.selectbox(T("mm_region"), ["—"] + region_opts, key="mm_region_sel")
+        rnew = st.text_input(T("mm_region_new"), key="mm_region_new")
+        region = rnew.strip() or ("" if rsel == "—" else rsel)
+    with c2:
+        sys_known = sorted(data["regions"].get(region, {}).get("systems", {}).keys()) if region else []
+        ssel = st.selectbox(T("mm_system"), ["—"] + sys_known, key="mm_system_sel")
+        snew = st.text_input(T("mm_system_new"), key="mm_system_new")
+        system = snew.strip() or ("" if ssel == "—" else ssel)
+    with c3:
+        pl_known = sorted(data["regions"].get(region, {}).get("systems", {}).get(system, {}).get("planets", {}).keys()) if (region and system) else []
+        psel = st.selectbox(T("mm_planet"), ["—"] + pl_known, key="mm_planet_sel")
+        pnew = st.text_input(T("mm_planet_new"), key="mm_planet_new")
+        planet = pnew.strip() or ("" if psel == "—" else psel)
+
+    res_sel = st.multiselect(T("mm_resources"), mineable, format_func=resname, key="mm_res")
+    if st.button(T("mm_addbtn"), type="primary"):
+        if region and system and planet:
+            discoveries.add_resources(data, region, system, planet, res_sel)
+            discoveries.save(data)
+            st.success(T("mm_added"))
+            st.rerun()
+        else:
+            st.warning(T("mm_need"))
+
+    # --- Journal (arbre) ---
+    st.divider()
+    st.subheader(T("mymap_log"))
+    rws = discoveries.rows(data)
+    if not rws:
+        st.info(T("mm_empty"))
+    else:
+        dfm = pd.DataFrame([{
+            T("col_place"): ("　" * r["depth"] + ("└ " if r["depth"] else "")) + r["name"],
+            T("mm_col_kind"): T("mm_k_" + r["kind"]),
+            T("mm_col_res"): ", ".join(resname(x) for x in r["resources"]) if r["kind"] == "planet" else "",
+        } for r in rws])
+        st.dataframe(dfm, hide_index=True, width="stretch", height=380)
+
+        # --- Recherche "où ai-je trouvé X" ---
+        st.subheader(T("mm_search"))
+        found = sorted(discoveries.all_resource_ids(data), key=resname)
+        if found:
+            q = st.selectbox(T("mm_search_res"), ["—"] + found,
+                             format_func=lambda i: "—" if i == "—" else resname(i), key="mm_qres")
+            if q != "—":
+                hits = discoveries.find_resource(data, q)
+                st.dataframe(pd.DataFrame([{T("mm_region2"): rg, T("mm_system2"): sy, T("mm_planet2"): pl}
+                                           for rg, sy, pl in hits]), hide_index=True, width="stretch")
+
+        # --- Supprimer une planète (corriger une erreur) ---
+        with st.expander(T("mm_del")):
+            flat = [(r["name"],) for r in rws if r["kind"] == "planet"]
+            triples = []
+            for rg, rgd in data["regions"].items():
+                for sy, syd in rgd.get("systems", {}).items():
+                    for pl in syd.get("planets", {}):
+                        triples.append((rg, sy, pl))
+            if triples:
+                dsel = st.selectbox(" ", range(len(triples)), key="mm_delsel",
+                                    format_func=lambda i: f"{triples[i][0]} › {triples[i][1]} › {triples[i][2]}")
+                if st.button(T("mm_delbtn"), key="mm_delbtn_b"):
+                    rg, sy, pl = triples[dsel]
+                    discoveries.remove_planet(data, rg, sy, pl)
+                    discoveries.save(data)
+                    st.success(T("mm_deleted"))
+                    st.rerun()
+
+    # --- Export / Import (sauvegarde) ---
+    st.divider()
+    ce, ci = st.columns(2)
+    ce.download_button(T("mm_export"), data=json.dumps(data, ensure_ascii=False, indent=2),
+                       file_name="my_discoveries.json", mime="application/json")
+    up = ci.file_uploader(T("mm_import"), type="json", key="mm_up")
+    if up is not None:
+        try:
+            newd = json.load(up)
+            discoveries.save(newd)
+            st.success(T("mm_imported"))
+            st.rerun()
+        except Exception as e:
+            st.error(f'{T("fail")} {e}')
