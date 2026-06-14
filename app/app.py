@@ -274,7 +274,7 @@ with tab6:
                     st.rerun()
             else:
                 st.markdown(
-                    f'<a href="{steam_auth.login_url()}" target="_self" '
+                    f'<a href="{steam_auth.login_url()}" target="_top" '
                     'style="display:inline-block;padding:.45rem 1rem;background:#1b2838;color:#66c0f4;'
                     'border-radius:6px;text-decoration:none;font-weight:600;">🎮 ' + T("mm_steam_login") + '</a>',
                     unsafe_allow_html=True)
