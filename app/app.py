@@ -41,6 +41,16 @@ def load(overrides_key, lang):
     return items, recipes
 
 
+@st.cache_data(ttl=20, show_spinner=False)
+def fetch_shared():
+    return cloud_store.fetch_all()
+
+
+@st.cache_data(show_spinner=False)
+def res_translations(lang):
+    return i18n.load_translations(lang).get("resource", {})
+
+
 # --- langue : drapeaux cliquables en haut de page ---
 _langs = i18n.available_langs()
 if st.session_state.get("lang") not in _langs:
@@ -114,6 +124,27 @@ if steam_auth.configured():
 overrides_key = tuple(sorted(st.session_state.get("overrides", {}).items()))
 items, recipes = load(overrides_key, lang)
 df = pd.DataFrame(recipes)
+
+# --- données partagées entre onglets : gisements + carte de découvertes ---
+_world0 = load_world()
+deposits = _world0.get("deposits", {})
+_rtr = res_translations(lang)
+dep_name = lambda d: _rtr.get(d) or deposits.get(d, {}).get("name", d)
+# nom d'affichage : gisement traduit ; sinon item (compat) ; sinon id brut
+resname = lambda x: dep_name(x) if x in deposits else items.get(x, {}).get("name", x)
+dep_ids = sorted(deposits.keys(), key=dep_name)
+# ce que produit un gisement (noms d'items traduits)
+dep_yield = lambda d: [items.get(i, {}).get("name", i) for i in deposits.get(d, {}).get("items", [])]
+
+shared = cloud_store.available()
+map_err = None
+if shared:
+    try:
+        map_data = discoveries.from_flat(fetch_shared())
+    except Exception as e:
+        map_data, map_err = discoveries.empty(), e
+else:
+    map_data = discoveries.load()
 
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([T("tab_recipes"), T("tab_items"), T("tab_craftmap"), T("tab_universe"), T("tab_where"), T("tab_mymap")])
 
@@ -222,6 +253,26 @@ with tab4:
         st.dataframe(dfu, hide_index=True, width="stretch", height=600)
     else:
         nodes, edges = graph_data.universe_graph(sheets, world=world, items=items, res_label=T("u_resources"))
+        # superpose les découvertes communautaires (systèmes/planètes ajoutés par les joueurs)
+        name2sec = {nm: sid for sid, nm in world["sector_name"].items()}
+        n_disc = 0
+        for rg, rgd in map_data.get("regions", {}).items():
+            rid = name2sec.get(rg, "drg:" + rg)
+            if rid not in nodes:
+                nodes[rid] = {"label": rg, "title": rg, "kind": "sector"}
+            for sy, syd in rgd.get("systems", {}).items():
+                sid = f"dsys:{rg}/{sy}"
+                nodes[sid] = {"label": sy, "title": f"{sy} ({T('mm_k_system')})", "kind": "disc_system"}
+                edges.append((rid, sid, ""))
+                for pl, pld in syd.get("planets", {}).items():
+                    pid = f"dpl:{rg}/{sy}/{pl}"
+                    deps = pld.get("resources", [])
+                    ttl = pl + ((" — " + ", ".join(dep_name(d) for d in deps)) if deps else "")
+                    nodes[pid] = {"label": pl, "title": ttl, "kind": "disc_planet"}
+                    edges.append((sid, pid, ""))
+                    n_disc += 1
+        if n_disc:
+            st.caption(T("u_disc_legend"))
         components.html(graph_data.to_html(nodes, edges, height="640px", hierarchical=True, direction="UD"), height=660)
 
 with tab5:
@@ -250,39 +301,15 @@ with tab5:
                                         T("col_reslevel"): w["sector_reslevel"].get(s), T("col_req"): _req(s)}
                                        for s in secs]), hide_index=True, width="stretch")
 
-@st.cache_data(ttl=20, show_spinner=False)
-def fetch_shared():
-    return cloud_store.fetch_all()
-
-
-@st.cache_data(show_spinner=False)
-def res_translations(lang):
-    return i18n.load_translations(lang).get("resource", {})
-
-
 with tab6:
     st.caption(T("mymap_help"))
-    w = load_world()
-    deposits = w.get("deposits", {})
-    _rtr = res_translations(lang)
-    dep_name = lambda d: _rtr.get(d) or deposits.get(d, {}).get("name", d)
-    # nom d'affichage : gisement traduit ; sinon item (compat anciennes entrées) ; sinon id brut
-    resname = lambda x: dep_name(x) if x in deposits else items.get(x, {}).get("name", x)
-    dep_ids = sorted(deposits.keys(), key=dep_name)
-
-    shared = cloud_store.available()
-    load_err = None
     if shared:
         st.success(T("mm_shared_on"))
-        try:
-            data = discoveries.from_flat(fetch_shared())
-        except Exception as e:
-            load_err = e
-            data = discoveries.empty()
-            st.error(f'{T("mm_shared_err")} {e}')
+        if map_err:
+            st.error(f'{T("mm_shared_err")} {map_err}')
     else:
         st.info(T("mm_local_note"))
-        data = discoveries.load()
+    data, load_err = map_data, map_err
 
     # identité de l'auteur en mode partagé : Steam si configuré, sinon pseudo libre
     author = ""
@@ -368,10 +395,14 @@ with tab6:
         if not load_err:
             st.info(T("mm_empty"))
     else:
+        def _dep_disp(d):
+            ys = dep_yield(d)
+            return resname(d) + (f" → {', '.join(ys[:4])}{'…' if len(ys) > 4 else ''}" if ys else "")
+
         dfm = pd.DataFrame([{
             T("col_place"): ("　" * r["depth"] + ("└ " if r["depth"] else "")) + r["name"],
             T("mm_col_kind"): T("mm_k_" + r["kind"]),
-            T("mm_col_res"): ", ".join(resname(x) for x in r["resources"]) if r["kind"] == "planet" else "",
+            T("mm_col_res"): " · ".join(_dep_disp(x) for x in r["resources"]) if r["kind"] == "planet" else "",
         } for r in rws])
         st.dataframe(dfm, hide_index=True, width="stretch", height=380)
 

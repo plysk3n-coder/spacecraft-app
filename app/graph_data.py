@@ -6,6 +6,8 @@ _COLORS = {
     "product": "#e8542f", "intermediate": "#4575b4", "raw": "#1a9850",
     "sector": "#9b59b6", "system": "#16a085", "planet": "#2980b9",
     "object": "#e67e22", "instance": "#c0392b",
+    # découvertes communautaires (mises en avant)
+    "disc_system": "#f1c40f", "disc_planet": "#f39c12",
 }
 
 

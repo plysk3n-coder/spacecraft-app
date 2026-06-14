@@ -105,6 +105,8 @@ UI = {
     "col_reslevel": {"fr": "Niv. ressources", "en": "Res. level"},
     "col_req":      {"fr": "Exploration requise", "en": "Exploration req."},
     "u_resources":  {"fr": "Ressources", "en": "Resources"},
+    "u_disc_legend":{"fr": "🟡 En jaune/orange : systèmes et planètes découverts par la communauté (survole une planète pour voir ses gisements).",
+                     "en": "🟡 In yellow/orange: systems and planets discovered by the community (hover a planet to see its deposits)."},
     "select_product": {"fr": "Produit à analyser", "en": "Product to analyze"},
     "depth":        {"fr": "Profondeur de la chaîne", "en": "Chain depth"},
     "tree_view":    {"fr": "🌲 Arborescence", "en": "🌲 Tree"},
