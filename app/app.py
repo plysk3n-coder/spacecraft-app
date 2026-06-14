@@ -273,11 +273,7 @@ with tab6:
                     steam_auth.logout()
                     st.rerun()
             else:
-                st.markdown(
-                    f'<a href="{steam_auth.login_url()}" target="_top" '
-                    'style="display:inline-block;padding:.45rem 1rem;background:#1b2838;color:#66c0f4;'
-                    'border-radius:6px;text-decoration:none;font-weight:600;">🎮 ' + T("mm_steam_login") + '</a>',
-                    unsafe_allow_html=True)
+                st.link_button("🎮 " + T("mm_steam_login"), steam_auth.login_url())
                 st.caption(T("mm_need_login"))
         else:
             st.warning(T("mm_steam_required"))
