@@ -12,7 +12,9 @@ Si absent -> available() == False -> l'app retombe sur le mode LOCAL (discoverie
 import streamlit as st
 
 TABLE = "discoveries"
-SELECT = "region,system,planet,resource,author,created_at"
+BANS = "bans"
+# "*" = robuste : marche meme si la colonne author_id n'existe pas encore (avant l'ALTER TABLE)
+SELECT = "*"
 
 
 def _cfg():
@@ -32,8 +34,12 @@ def _headers():
     return {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
 
 
+def _rest(table):
+    return _cfg().get("url", "").rstrip("/") + f"/rest/v1/{table}"
+
+
 def _base():
-    return _cfg().get("url", "").rstrip("/") + f"/rest/v1/{TABLE}"
+    return _rest(TABLE)
 
 
 def fetch_all():
@@ -44,16 +50,51 @@ def fetch_all():
     return r.json()
 
 
-def add(region, system, planet, resources, author):
-    """Insere une decouverte. Si pas de ressource, enregistre quand meme la planete (resource=None)."""
+def add(region, system, planet, resources, author, author_id=None):
+    """Insere une decouverte (avec le SteamID auteur). Si pas de ressource, enregistre quand meme
+    la planete (resource=None). Tolere l'absence de la colonne author_id (reessaye sans)."""
     import requests
     author = (author or "anon").strip() or "anon"
     res = [x for x in (resources or []) if x]
-    rows = ([{"region": region, "system": system, "planet": planet, "resource": x, "author": author} for x in res]
-            if res else [{"region": region, "system": system, "planet": planet, "resource": None, "author": author}])
+    base = {"region": region, "system": system, "planet": planet, "author": author, "author_id": author_id}
+    rows = [dict(base, resource=x) for x in res] if res else [dict(base, resource=None)]
     h = _headers(); h["Prefer"] = "return=minimal"
     r = requests.post(_base(), headers=h, json=rows, timeout=15)
+    if r.status_code >= 400:  # ex : colonne author_id pas encore creee -> reessaye sans
+        for row in rows:
+            row.pop("author_id", None)
+        r = requests.post(_base(), headers=h, json=rows, timeout=15)
     r.raise_for_status()
+
+
+# --- bannissements (table `bans`) ---
+
+def fetch_bans():
+    import requests
+    r = requests.get(_rest(BANS), headers=_headers(),
+                     params={"select": "*", "order": "created_at"}, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+def ban(author_id, name):
+    import requests
+    h = _headers(); h["Prefer"] = "resolution=merge-duplicates,return=minimal"
+    r = requests.post(_rest(BANS), headers=h,
+                      json=[{"author_id": author_id, "name": name}], timeout=15)
+    r.raise_for_status()
+
+
+def unban(author_id):
+    import requests
+    r = requests.delete(_rest(BANS), headers=_headers(),
+                        params={"author_id": f"eq.{author_id}"}, timeout=15)
+    r.raise_for_status()
+
+
+def delete_by_author(author_id):
+    """Supprime toutes les contributions d'un auteur (par SteamID)."""
+    delete_where(author_id=author_id)
 
 
 def delete_planet(region, system, planet, author):

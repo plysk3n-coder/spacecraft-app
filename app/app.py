@@ -46,6 +46,14 @@ def fetch_shared():
     return cloud_store.fetch_all()
 
 
+@st.cache_data(ttl=20, show_spinner=False)
+def fetch_bans_cached():
+    try:
+        return cloud_store.fetch_bans()
+    except Exception:
+        return []  # table `bans` pas encore créée -> aucun banni
+
+
 @st.cache_data(show_spinner=False)
 def res_translations(lang):
     return i18n.load_translations(lang).get("resource", {})
@@ -147,7 +155,15 @@ if shared:
 else:
     map_data = discoveries.load()
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([T("tab_recipes"), T("tab_items"), T("tab_craftmap"), T("tab_universe"), T("tab_where"), T("tab_mymap")])
+admin = steam_auth.is_admin(st.session_state.get("steam_user"))
+banned_ids = {b.get("author_id") for b in fetch_bans_cached()} if shared else set()
+
+_labels = [T("tab_recipes"), T("tab_items"), T("tab_craftmap"), T("tab_universe"), T("tab_where"), T("tab_mymap")]
+if admin:
+    _labels.append(T("tab_admin"))
+_tabs = st.tabs(_labels)
+tab1, tab2, tab3, tab4, tab5, tab6 = _tabs[:6]
+tab_admin = _tabs[6] if admin else None
 
 with tab1:
     c = st.columns([2, 1, 1, 1])
@@ -316,15 +332,14 @@ with tab6:
         st.info(T("mm_local_note"))
     data, load_err = map_data, map_err
 
-    # identité de l'auteur en mode partagé : Steam si configuré, sinon pseudo libre
-    author = ""
+    # identité de l'auteur en mode partagé : login Steam (écriture gatée)
+    author, author_id = "", ""
     if shared:
         if steam_auth.configured():
             user = steam_auth.current_user()
             if user:
-                author = user["name"]
                 ci, co = st.columns([5, 1])
-                _badge = f'🎮 {T("mm_steam_as")} **{author}**'
+                _badge = f'🎮 {T("mm_steam_as")} **{user["name"]}**'
                 _badge += "  ·  🛠️ admin" if steam_auth.is_admin(user) else f'  ·  SteamID `{user.get("id")}`'
                 ci.success(_badge)
                 if co.button(T("mm_logout"), key="mm_logout_b"):
@@ -334,6 +349,10 @@ with tab6:
                     except Exception:
                         pass
                     st.rerun()
+                if user.get("id") in banned_ids:
+                    st.error(T("mm_banned"))  # banni -> author reste vide -> écriture bloquée
+                else:
+                    author, author_id = user["name"], user.get("id")
             else:
                 st.link_button("🎮 " + T("mm_steam_login"), steam_auth.login_url())
                 st.caption(T("mm_need_login"))
@@ -387,7 +406,7 @@ with tab6:
         elif region and system and planet:
             try:
                 if shared:
-                    cloud_store.add(region, system, planet, res_sel, author)
+                    cloud_store.add(region, system, planet, res_sel, author, author_id=author_id)
                     fetch_shared.clear()
                 else:
                     discoveries.add_resources(data, region, system, planet, res_sel)
@@ -515,3 +534,73 @@ with tab6:
                 st.rerun()
             except Exception as e:
                 st.error(f'{T("fail")} {e}')
+
+
+# --- Onglet ADMIN (visible uniquement par l'admin) : contributeurs + bannissements ---
+if tab_admin is not None:
+    with tab_admin:
+        st.caption(T("adm_help"))
+        try:
+            allrows = fetch_shared()
+        except Exception:
+            allrows = []
+
+        # agrégation par contributeur (SteamID si dispo, sinon pseudo)
+        agg = {}
+        for r in allrows:
+            aid = r.get("author_id") or ""
+            key = aid or ("name:" + (r.get("author") or "anon"))
+            a = agg.setdefault(key, {"id": aid, "name": r.get("author") or "?", "n": 0, "first": None, "last": None})
+            a["n"] += 1
+            ts = r.get("created_at")
+            if ts:
+                a["first"] = ts if not a["first"] else min(a["first"], ts)
+                a["last"] = ts if not a["last"] else max(a["last"], ts)
+        contribs = sorted(agg.values(), key=lambda x: -x["n"])
+
+        st.subheader(T("adm_contributors"))
+        if contribs:
+            st.dataframe(pd.DataFrame([{T("adm_name"): c["name"], T("adm_id"): c["id"] or "—",
+                                        T("adm_count"): c["n"], T("adm_first"): c["first"], T("adm_last"): c["last"]}
+                                       for c in contribs]), hide_index=True, width="stretch")
+            withid = [c for c in contribs if c["id"]]
+            if withid:
+                csel = st.selectbox(T("adm_pick"), range(len(withid)),
+                                    format_func=lambda i: f'{withid[i]["name"]} ({withid[i]["id"]}) · {withid[i]["n"]}',
+                                    key="adm_csel")
+                tgt = withid[csel]
+                b1, b2 = st.columns(2)
+                if b1.button("🚫 " + T("adm_ban"), key="adm_ban_b"):
+                    try:
+                        cloud_store.ban(tgt["id"], tgt["name"]); fetch_bans_cached.clear()
+                        st.success(T("adm_banned")); st.rerun()
+                    except Exception as e:
+                        st.error(f'{T("fail")} {e}')
+                if b2.button("🗑️ " + T("adm_delall"), key="adm_delall_b"):
+                    try:
+                        cloud_store.delete_by_author(tgt["id"]); fetch_shared.clear()
+                        st.success(T("mm_deleted")); st.rerun()
+                    except Exception as e:
+                        st.error(f'{T("fail")} {e}')
+            else:
+                st.caption(T("adm_noid"))
+        else:
+            st.info(T("adm_no_contrib"))
+
+        st.divider()
+        st.subheader(T("adm_bans"))
+        bans = fetch_bans_cached()
+        if bans:
+            st.dataframe(pd.DataFrame([{T("adm_name"): b.get("name"), T("adm_id"): b.get("author_id"),
+                                        T("adm_since"): b.get("created_at")} for b in bans]),
+                         hide_index=True, width="stretch")
+            bsel = st.selectbox(T("adm_pick_ban"), range(len(bans)),
+                                format_func=lambda i: f'{bans[i].get("name")} ({bans[i].get("author_id")})', key="adm_bsel")
+            if st.button("✅ " + T("adm_unban"), key="adm_unban_b"):
+                try:
+                    cloud_store.unban(bans[bsel].get("author_id")); fetch_bans_cached.clear()
+                    st.success(T("adm_unbanned")); st.rerun()
+                except Exception as e:
+                    st.error(f'{T("fail")} {e}')
+        else:
+            st.caption(T("adm_no_ban"))
