@@ -35,7 +35,8 @@ def load(overrides_key, lang):
 # --- langue d'abord (la sidebar est evaluee avant le corps) ---
 with st.sidebar:
     langs = i18n.available_langs()
-    lang = st.selectbox(i18n.t("language", "en"), langs, format_func=lambda c: i18n.LANGS.get(c, c))
+    _default_lang = langs.index("fr") if "fr" in langs else 0
+    lang = st.selectbox(i18n.t("language", "en"), langs, index=_default_lang, format_func=lambda c: i18n.LANGS.get(c, c))
 T = lambda k: i18n.t(k, lang)
 
 st.title(T("title"))
