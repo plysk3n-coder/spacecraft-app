@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-import os, sys, json
+import os, sys, json, datetime
 import pandas as pd
 import streamlit as st
+import extra_streamlit_components as stx
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import streamlit.components.v1 as components
@@ -92,9 +93,23 @@ with st.expander("⚙️ " + T("settings"), expanded=False):
         for i, p in st.session_state.overrides.items():
             st.write(f"- {items0[i]['name']} → {p}")
 
-# capture le retour de connexion Steam (OpenID) le plus tot possible, puis nettoie l'URL
+# --- connexion Steam : persistee via cookie signe (resiste au F5) ---
+AUTH_COOKIE = "sc_auth"
+cookies = stx.CookieManager(key="sc_cookies")
 if steam_auth.configured():
-    steam_auth.current_user()
+    steam_auth.current_user()  # traite le retour OpenID -> session
+    _user = st.session_state.get("steam_user")
+    if _user:
+        # connecte : s'assurer que le cookie reflete bien l'identite
+        _tok = steam_auth.make_token(_user)
+        if cookies.get(AUTH_COOKIE) != _tok:
+            cookies.set(AUTH_COOKIE, _tok,
+                        expires_at=datetime.datetime.now() + datetime.timedelta(days=30))
+    else:
+        # pas en session : tenter de restaurer depuis le cookie
+        _restored = steam_auth.parse_token(cookies.get(AUTH_COOKIE) or "")
+        if _restored:
+            st.session_state["steam_user"] = _restored
 
 overrides_key = tuple(sorted(st.session_state.get("overrides", {}).items()))
 items, recipes = load(overrides_key, lang)
@@ -280,6 +295,10 @@ with tab6:
                 ci.success(f'🎮 {T("mm_steam_as")} **{author}**')
                 if co.button(T("mm_logout"), key="mm_logout_b"):
                     steam_auth.logout()
+                    try:
+                        cookies.delete(AUTH_COOKIE)
+                    except Exception:
+                        pass
                     st.rerun()
             else:
                 st.link_button("🎮 " + T("mm_steam_login"), steam_auth.login_url())
@@ -293,14 +312,21 @@ with tab6:
     sectors_cdb = sorted(set(w["sector_name"].values()))
     region_opts = regions_known + [s for s in sectors_cdb if s not in regions_known]
 
+    # région/système mémorisés dans l'URL (survivent au F5) -> index par défaut des listes
+    _qp = st.query_params
+    def _idx(opts, val):
+        return opts.index(val) if val in opts else 0
+
     c1, c2, c3 = st.columns(3)
     with c1:
-        rsel = st.selectbox(T("mm_region"), ["—"] + region_opts, key="mm_region_sel")
+        ropts = ["—"] + region_opts
+        rsel = st.selectbox(T("mm_region"), ropts, index=_idx(ropts, _qp.get("rg", "")), key="mm_region_sel")
         rnew = st.text_input(T("mm_region_new"), key="mm_region_new")
         region = rnew.strip() or ("" if rsel == "—" else rsel)
     with c2:
         sys_known = sorted(data["regions"].get(region, {}).get("systems", {}).keys()) if region else []
-        ssel = st.selectbox(T("mm_system"), ["—"] + sys_known, key="mm_system_sel")
+        sopts = ["—"] + sys_known
+        ssel = st.selectbox(T("mm_system"), sopts, index=_idx(sopts, _qp.get("sy", "")), key="mm_system_sel")
         snew = st.text_input(T("mm_system_new"), key="mm_system_new")
         system = snew.strip() or ("" if ssel == "—" else ssel)
     with c3:
@@ -308,6 +334,12 @@ with tab6:
         psel = st.selectbox(T("mm_planet"), ["—"] + pl_known, key="mm_planet_sel")
         pnew = st.text_input(T("mm_planet_new"), key="mm_planet_new")
         planet = pnew.strip() or ("" if psel == "—" else psel)
+
+    # mémorise région/système choisis dans l'URL (sans forcer de rerun si inchangé)
+    if region and _qp.get("rg") != region:
+        _qp["rg"] = region
+    if system and _qp.get("sy") != system:
+        _qp["sy"] = system
 
     res_sel = st.multiselect(T("mm_resources"), dep_ids, format_func=dep_name, key="mm_res")
     if st.button(T("mm_addbtn"), type="primary"):

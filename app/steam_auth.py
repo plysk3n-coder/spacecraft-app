@@ -13,12 +13,18 @@ Si return_url absent -> configured() == False -> l'app retombe sur le champ pseu
 NB : la connexion est valable le temps de la SESSION (un rafraichissement complet de la page
 deconnecte ; il suffit de se reconnecter, Steam s'en souvient).
 """
+import base64
+import hashlib
+import hmac
+import json
 import re
+import time
 import urllib.parse
 import streamlit as st
 
 LOGIN = "https://steamcommunity.com/openid/login"
 NS = "http://specs.openid.net/auth/2.0"
+TOKEN_TTL = 30 * 24 * 3600  # 30 jours
 
 
 def _cfg():
@@ -88,13 +94,44 @@ def current_user():
         if sid:
             user = {"id": sid, "name": _steam_name(sid)}
             st.session_state["steam_user"] = user
-            try:
-                st.query_params.clear()
-            except Exception:
-                pass
+            # ne nettoie QUE les parametres openid.* (garde les autres, ex region/system)
+            for k in [k for k in list(qp.keys()) if k.startswith("openid.")]:
+                try:
+                    del qp[k]
+                except Exception:
+                    pass
             return user
     return None
 
 
 def logout():
     st.session_state.pop("steam_user", None)
+
+
+# --- jeton signe pour persister la connexion dans un cookie (resiste au F5) ---
+
+def _secret():
+    c = _cfg()
+    return (c.get("cookie_secret") or c.get("api_key") or "spacecraft-default").encode()
+
+
+def make_token(user):
+    payload = {"id": user["id"], "name": user["name"], "exp": int(time.time()) + TOKEN_TTL}
+    raw = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+    sig = hmac.new(_secret(), raw.encode(), hashlib.sha256).hexdigest()
+    return f"{raw}.{sig}"
+
+
+def parse_token(token):
+    """Renvoie {'id','name'} si le jeton est valide et non expire, sinon None."""
+    try:
+        raw, sig = token.split(".", 1)
+        good = hmac.new(_secret(), raw.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, good):
+            return None
+        data = json.loads(base64.urlsafe_b64decode(raw.encode()))
+        if data.get("exp", 0) < int(time.time()):
+            return None
+        return {"id": data["id"], "name": data["name"]}
+    except Exception:
+        return None
