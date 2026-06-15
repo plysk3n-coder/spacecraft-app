@@ -690,8 +690,8 @@ if _sel == "tab_base":
 if _sel == "tab_permits":
     _ptr = sheet_translations(lang, "permit")
     _pnodes, _pedges, _item2p = permit_data.build_tree(sheets, items, _ptr)
-    _pview = st.radio("permitview", ["permit_view_unlock", "permit_view_tree"], format_func=T,
-                      horizontal=True, label_visibility="collapsed", key="permit_view")
+    _pview = st.radio("permitview", ["permit_view_unlock", "permit_fam_tech", "permit_fam_corpo"],
+                      format_func=T, horizontal=True, label_visibility="collapsed", key="permit_view")
     if _pview == "permit_view_unlock":
         st.caption(T("permit_help"))
         _unlockable = sorted(_item2p.keys(), key=lambda i: items.get(i, {}).get("name", i))
@@ -711,9 +711,7 @@ if _sel == "tab_permits":
             else:
                 st.info(T("permit_none"))
     else:
-        _fam = st.radio("permitfam", ["permit_fam_tech", "permit_fam_corpo"], format_func=T,
-                        horizontal=True, label_visibility="collapsed", key="permit_fam")
-        _want = "corpo" if _fam == "permit_fam_corpo" else "tech"
+        _want = "corpo" if _pview == "permit_fam_corpo" else "tech"
         _fnodes = {pid: d for pid, d in _pnodes.items() if d["family"] == _want}
         _fedges = [(a, b) for a, b in _pedges if a in _fnodes and b in _fnodes]
         components.html(permit_data.permit_html(_fnodes, _fedges, set()), height=720)
