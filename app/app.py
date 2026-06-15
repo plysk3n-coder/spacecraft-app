@@ -12,6 +12,7 @@ import i18n
 import graph_data
 import build_data
 import permit_data
+import contract_data
 import world_data
 import discoveries
 import cloud_store
@@ -194,7 +195,7 @@ world = w = _world0
 # (survit aux reruns ET au F5, comme rg/sy) + session_state via la clé du widget.
 _qp = st.query_params
 _keys = ["tab_recipes", "tab_items", "tab_craftmap", "tab_universe", "tab_where", "tab_mymap",
-         "tab_ship", "tab_base", "tab_permits"]
+         "tab_ship", "tab_base", "tab_permits", "tab_contracts"]
 if admin:
     _keys.append("tab_admin")
 if st.session_state.get("navtab") not in _keys:
@@ -685,29 +686,51 @@ if _sel == "tab_base":
         if _rows:
             st.dataframe(pd.DataFrame(_rows), hide_index=True, width="stretch")
 
-# --- Onglet PERMIS / TECH : arbre des licences + voie de déblocage d'un item ---
+# --- Onglet PERMIS / TECH : 2 sous-vues (déblocage d'un item / arbre complet) ---
 if _sel == "tab_permits":
-    st.caption(T("permit_help"))
     _ptr = sheet_translations(lang, "permit")
     _pnodes, _pedges, _item2p = permit_data.build_tree(sheets, items, _ptr)
-    _unlockable = sorted(_item2p.keys(), key=lambda i: items.get(i, {}).get("name", i))
-    _q = st.selectbox(T("permit_search"), ["—"] + _unlockable,
-                      format_func=lambda i: "—" if i == "—" else items.get(i, {}).get("name", i), key="permit_q")
-    _hl = set()
-    if _q != "—":
-        _r = permit_data.unlock_cost(_pnodes, _item2p, _q)
-        if _r:
-            _hl = set(_r["chain"])
-            st.success(T("permit_found").format(item=items.get(_q, {}).get("name", _q),
-                                                permit=_pnodes[_r["permit"]]["name"], total=_r["total"], n=len(_r["chain"])))
-            st.dataframe(pd.DataFrame([{
-                T("permit_c_name"): _pnodes[p]["name"], T("permit_c_cost"): _pnodes[p]["cost"],
-                T("permit_c_unlocks"): ", ".join(_pnodes[p]["unlocks"][:6]) + (" …" if len(_pnodes[p]["unlocks"]) > 6 else "")}
-                for p in _r["chain"]]), hide_index=True, width="stretch",
-                column_config={T("permit_c_cost"): st.column_config.NumberColumn(format="%d")})
-        else:
-            st.info(T("permit_none"))
-    components.html(permit_data.permit_html(_pnodes, _pedges, _hl), height=680)
+    _pview = st.radio("permitview", ["permit_view_unlock", "permit_view_tree"], format_func=T,
+                      horizontal=True, label_visibility="collapsed", key="permit_view")
+    if _pview == "permit_view_unlock":
+        st.caption(T("permit_help"))
+        _unlockable = sorted(_item2p.keys(), key=lambda i: items.get(i, {}).get("name", i))
+        _q = st.selectbox(T("permit_search"), ["—"] + _unlockable,
+                          format_func=lambda i: "—" if i == "—" else items.get(i, {}).get("name", i), key="permit_q")
+        if _q != "—":
+            _r = permit_data.unlock_cost(_pnodes, _item2p, _q)
+            if _r:
+                st.success(T("permit_found").format(item=items.get(_q, {}).get("name", _q),
+                                                    permit=_pnodes[_r["permit"]]["name"], total=_r["total"], n=len(_r["chain"])))
+                st.dataframe(pd.DataFrame([{
+                    T("permit_c_name"): _pnodes[p]["name"], T("permit_c_cost"): _pnodes[p]["cost"],
+                    T("permit_c_unlocks"): ", ".join(_pnodes[p]["unlocks"][:6]) + (" …" if len(_pnodes[p]["unlocks"]) > 6 else "")}
+                    for p in _r["chain"]]), hide_index=True, width="stretch",
+                    column_config={T("permit_c_cost"): st.column_config.NumberColumn(format="%d")})
+                components.html(permit_data.permit_html(_pnodes, _pedges, set(_r["chain"])), height=600)
+            else:
+                st.info(T("permit_none"))
+    else:
+        components.html(permit_data.permit_html(_pnodes, _pedges, set()), height=720)
+
+# --- Onglet CONTRATS / ÉCONOMIE : profit net = crédits − coût de production ---
+if _sel == "tab_contracts":
+    st.caption(T("contract_help"))
+    _uc = graph_data.unit_costs(sheets, items)
+    _all_ct = contract_data.contracts(sheets, items, _uc, sheet_translations(lang, "contract"))
+    _clients = sorted({c["client"] for c in _all_ct if c["client"]})
+    _fc = st.multiselect(T("ct_client"), _clients, key="ct_clientf")
+    _maxlvl = max((c["level"] for c in _all_ct), default=1)
+    _lvl = st.slider(T("ct_filter_lvl"), 1, int(_maxlvl), int(_maxlvl), key="ct_lvlf")
+    _ct = [c for c in _all_ct if (not _fc or c["client"] in _fc) and c["level"] <= _lvl]
+    st.dataframe(pd.DataFrame([{
+        T("ct_name"): c["name"], T("ct_client"): c["client"], T("ct_level"): c["level"],
+        T("ct_demand"): c["demand"], T("ct_credits"): c["credits"], T("ct_lp"): c["lp"],
+        T("ct_cost"): c["cost"], T("ct_net"): c["net"]} for c in _ct]),
+        hide_index=True, width="stretch", height=600,
+        column_config={T("ct_credits"): st.column_config.NumberColumn(format="%d"),
+                       T("ct_cost"): st.column_config.NumberColumn(format="%d"),
+                       T("ct_net"): st.column_config.NumberColumn(format="%d")})
 
 # --- Onglet ADMIN (visible uniquement par l'admin) : contributeurs + bannissements ---
 if admin:

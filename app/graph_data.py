@@ -69,6 +69,27 @@ def best_recipes(sheets, items):
     return best
 
 
+def unit_costs(sheets, items):
+    """{item_id: coût en matières premières de la voie la moins chère} (1 unité). Cycle-safe."""
+    produced_by = _craft_index(sheets)
+    price = lambda i: items.get(i, {}).get("price", 0) or 0
+    memo, inprog = {}, set()
+
+    def uc(i):
+        if i in memo:
+            return memo[i]
+        recs = produced_by.get(i)
+        if not recs or i in inprog:
+            return price(i)
+        inprog.add(i)
+        best = min(sum(uc(ii) * q for ii, q in ins) / (oq or 1) for _, ins, oq, _w, _u in _candidates(recs))
+        inprog.discard(i)
+        memo[i] = best
+        return best
+
+    return {i: uc(i) for i in set(list(produced_by.keys()) + list(items.keys()))}
+
+
 def craft_chain(sheets, items, product_id, max_depth=4, max_nodes=70):
     best = best_recipes(sheets, items)
     nm = lambda i: items.get(i, {}).get("name", i)
