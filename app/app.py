@@ -711,7 +711,12 @@ if _sel == "tab_permits":
             else:
                 st.info(T("permit_none"))
     else:
-        components.html(permit_data.permit_html(_pnodes, _pedges, set()), height=720)
+        _fam = st.radio("permitfam", ["permit_fam_tech", "permit_fam_corpo"], format_func=T,
+                        horizontal=True, label_visibility="collapsed", key="permit_fam")
+        _want = "corpo" if _fam == "permit_fam_corpo" else "tech"
+        _fnodes = {pid: d for pid, d in _pnodes.items() if d["family"] == _want}
+        _fedges = [(a, b) for a, b in _pedges if a in _fnodes and b in _fnodes]
+        components.html(permit_data.permit_html(_fnodes, _fedges, set()), height=720)
 
 # --- Onglet CONTRATS / ÉCONOMIE : profit net = crédits − coût de production ---
 if _sel == "tab_contracts":

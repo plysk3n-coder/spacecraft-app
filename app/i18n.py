@@ -58,6 +58,8 @@ UI = {
     # --- Permis : 2 sous-vues ---
     "permit_view_unlock": {"fr": "🔍 Débloquer un item", "en": "🔍 Unlock an item"},
     "permit_view_tree": {"fr": "🌳 Arbre complet", "en": "🌳 Full tree"},
+    "permit_fam_tech": {"fr": "🔬 Tech", "en": "🔬 Tech"},
+    "permit_fam_corpo": {"fr": "🏢 Permis corpo", "en": "🏢 Corp permits"},
     # --- Contrats / économie ---
     "tab_contracts": {"fr": "💰 Contrats", "en": "💰 Contracts"},
     "contract_help": {"fr": "Contrats des corporations : ce qu'ils demandent contre des crédits + License Points. Profit net = crédits − coût de production (voie la moins chère). Triés par profit.",

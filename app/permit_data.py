@@ -39,7 +39,8 @@ def build_tree(sheets, items, permit_tr=None):
         reqs = [r.get("permit") for r in (p.get("requires") or []) if r.get("permit")]
         nodes[pid] = {"name": permit_tr.get(pid) or p.get("name"), "cost": p.get("cost", 0) or 0,
                       "x": p.get("pos_x") or 0, "y": p.get("pos_y") or 0,
-                      "requires": reqs, "unlocks": names, "unlock_ids": ids}
+                      "requires": reqs, "unlocks": names, "unlock_ids": ids,
+                      "family": "corpo" if pid.startswith("PCorpo") else "tech"}
         for ii in ids:
             item_to_permit.setdefault(ii, pid)
     # edges seulement vers des permits existants
