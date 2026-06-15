@@ -211,6 +211,21 @@ def _item_station(sheets):
     return st
 
 
+def item_recipes(sheets, items, item_id):
+    """(produced_by, used_in) : recettes qui PRODUISENT l'item et recettes qui le CONSOMMENT."""
+    nm = lambda i: items.get(i, {}).get("name", i)
+    fmt = lambda lst: ", ".join(f"{x.get('qty', 1)}× {nm(x.get('item'))}" for x in lst)
+    produced_by, used_in = [], []
+    for c in cdb_model._lines(sheets, "craft"):
+        outs, ins = c.get("outputs") or [], c.get("inputs") or []
+        if item_id in {o.get("item") for o in outs}:
+            produced_by.append({"in": fmt(ins), "out": fmt(outs), "where": c.get("where", "")})
+        if item_id in {x.get("item") for x in ins}:
+            used_in.append({"product": nm(outs[0].get("item")) if outs else c.get("id"),
+                            "in": fmt(ins), "where": c.get("where", "")})
+    return produced_by, used_in
+
+
 def craftable_products(sheets, items):
     out = set()
     for c in cdb_model._lines(sheets, "craft"):

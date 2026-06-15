@@ -261,8 +261,40 @@ if _sel == "tab_items":
         di = di[di[T("col_itemname")].str.lower().str.contains(qi.lower())]
     di = di.sort_values(T("col_price"), ascending=False)
     st.write(f'**{len(di)} {T("n_items")}**')
-    st.dataframe(di, width="stretch", height=600, hide_index=True,
+    st.dataframe(di, width="stretch", height=400, hide_index=True,
                  column_config={T("col_price"): st.column_config.NumberColumn(format="%.2f")})
+
+    # --- Fiche d'un item : stats + produit par / utilisé dans ---
+    st.divider()
+    st.subheader(T("item_detail"))
+    _iids = sorted(items.keys(), key=lambda i: items[i]["name"])
+    _isel = st.selectbox(T("item_pick"), _iids, format_func=lambda i: items[i]["name"], key="item_detail_sel")
+    if _isel:
+        _it = items[_isel]
+        _c1, _c2 = st.columns([1, 2])
+        with _c1:
+            st.metric(T("col_price"), f'{_it.get("price", 0):.2f}')
+            st.caption(f'{T("col_type")}: {_it.get("type", "—")}')
+            _at = build_data.item_attributes(sheets, _isel)
+            if _at:
+                _am = build_data.attr_meta(sheets)
+                st.dataframe(pd.DataFrame([{
+                    T("ir_attr"): _am.get(k, (k, ""))[0] + (f" [{_am.get(k, ('', ''))[1]}]" if _am.get(k, ("", ""))[1] else ""),
+                    T("ir_value"): v} for k, v in _at.items()]), hide_index=True, width="stretch")
+        with _c2:
+            _prod, _used = graph_data.item_recipes(sheets, items, _isel)
+            st.caption(T("item_prod_by"))
+            if _prod:
+                st.dataframe(pd.DataFrame([{T("ir_in"): r["in"], T("ir_out"): r["out"], T("col_station"): r["where"]} for r in _prod]),
+                             hide_index=True, width="stretch")
+            else:
+                st.caption(T("item_prod_none"))
+            st.caption(T("item_used_in"))
+            if _used:
+                st.dataframe(pd.DataFrame([{T("ir_product"): r["product"], T("ir_in"): r["in"], T("col_station"): r["where"]} for r in _used]),
+                             hide_index=True, width="stretch")
+            else:
+                st.caption(T("item_used_none"))
 
 if _sel == "tab_craftmap":
     st.caption(T("craftmap_help"))

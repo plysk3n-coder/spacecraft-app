@@ -47,6 +47,14 @@ def _attrs(line):
     return {x["attr"]: x["value"] for x in (line.get("attributes") or []) if x.get("attr")}
 
 
+def item_attributes(sheets, item_id):
+    """{attr_id: value} d'un item (stats brutes), ou {} si aucune."""
+    for l in cdb_model._lines(sheets, "item"):
+        if l.get("id") == item_id:
+            return _attrs(l)
+    return {}
+
+
 def grouped(sheets, items, cats):
     """-> [{'cat', 'key', 'list':[{id,name,price,attrs}]}] (chaque liste triee par nom)."""
     by_type = {}
