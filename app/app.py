@@ -139,9 +139,20 @@ _world0 = load_world()
 deposits = _world0.get("deposits", {})
 _rtr = res_translations(lang)
 dep_name = lambda d: _rtr.get(d) or deposits.get(d, {}).get("name", d)
-# nom d'affichage : gisement traduit ; sinon item (compat) ; sinon id brut
-resname = lambda x: dep_name(x) if x in deposits else items.get(x, {}).get("name", x)
-dep_ids = sorted(deposits.keys(), key=dep_name)
+# nom d'affichage : ressource traduite (n'importe quel id de la table resource) ; sinon item (compat) ; sinon id brut
+resname = lambda x: _rtr.get(x) or items.get(x, {}).get("name", x)
+# options du multiselect = toutes les ressources minables (pas seulement les 70 avec items),
+# dedoublonnees par nom traduit (on garde l'id avec items, sinon le plus court -> evite les variantes _Big)
+_rec_ids = set(deposits) | set(_world0.get("minable", []))
+def _better(a, b):
+    ai, bi = a in deposits, b in deposits
+    return ai if ai != bi else (len(a) < len(b))
+_by_nm = {}
+for _d in _rec_ids:
+    _nm = dep_name(_d)
+    if _nm not in _by_nm or _better(_d, _by_nm[_nm]):
+        _by_nm[_nm] = _d
+dep_ids = sorted(_by_nm.values(), key=dep_name)
 # ce que produit un gisement (noms d'items traduits)
 dep_yield = lambda d: [items.get(i, {}).get("name", i) for i in deposits.get(d, {}).get("items", [])]
 

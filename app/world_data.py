@@ -80,6 +80,12 @@ def build_world(sheets):
     deposits = {rid: {"name": r.get("name", rid),
                       "items": [it.get("item") for it in (r.get("items") or []) if it.get("item")]}
                 for rid, r in resources.items() if (r.get("items"))}
+    # ressources enregistrables sur une planete (carte communautaire) : tous les types "minables"
+    # geologiques/biologiques, meme sans items de sortie (Shell/Geyser/Deposit comme Calcedoine, Geyser
+    # d'eau, Gisement de fer...). Exclut Deco/Decal/ShipWreck. Surensemble de `deposits`.
+    _MINABLE_TYPES = {1, 2, 3, 4, 5, 6, 9, 10}  # Gravite,Node,Deposit,Shell,Geyser,Pool,Biological,BioRoot
+    minable = sorted(rid for rid, r in resources.items()
+                     if r.get("type") in _MINABLE_TYPES or r.get("items"))
 
     # hierarchie NOMMEE authored du cdb : sector_name -> {system_name -> [lieux]} (+ map nom->id systeme)
     sysn = {l["id"]: (l.get("name") or l["id"]) for l in cdb_model._lines(sheets, "system")}
@@ -102,7 +108,7 @@ def build_world(sheets):
 
     return {"sector_items": sector_items, "sector_res": sector_res,
             "item_sectors": item_sectors, "item_sources": item_sources,
-            "deposits": deposits,
+            "deposits": deposits, "minable": minable,
             "named_universe": named_universe, "system_name2id": system_name2id,
             "sector_name": {sid: s.get("name", sid) for sid, s in sectors.items()},
             "sector_reslevel": {sid: s.get("resLevel") for sid, s in sectors.items()},
