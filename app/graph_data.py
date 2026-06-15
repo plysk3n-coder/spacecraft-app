@@ -296,7 +296,7 @@ def to_html(nodes, edges, height="640px", hierarchical=False, direction="UD"):
     from pyvis.network import Network
     net = Network(height=height, width="100%", directed=True, bgcolor="#0e1117", font_color="#eee")
     if hierarchical:
-        net.set_options('{"layout":{"hierarchical":{"enabled":true,"direction":"%s","sortMethod":"directed","levelSeparation":110,"nodeSpacing":150,"treeSpacing":200}},"physics":{"enabled":false}}' % direction)
+        net.set_options('{"layout":{"hierarchical":{"enabled":true,"direction":"%s","sortMethod":"directed","levelSeparation":110,"nodeSpacing":230,"treeSpacing":290}},"physics":{"enabled":false}}' % direction)
     else:
         net.barnes_hut(gravity=-12000, spring_length=120)
     for nid, d in nodes.items():

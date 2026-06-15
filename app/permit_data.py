@@ -86,7 +86,7 @@ def permit_html(nodes, edges, highlight=None, height="660px"):
             extra = ", ".join(d["unlocks"][:14]) + (" …" if len(d["unlocks"]) > 14 else "")
             title += f" | débloque : {extra}"
         net.add_node(pid, label=f"{d['name']}\n{d['cost']} PL", title=title,
-                     x=float(d["x"]) * 190, y=float(d["y"]) * 115, physics=False,
+                     x=float(d["x"]) * 300, y=float(d["y"]) * 120, physics=False,
                      color=color, shape="box", font={"size": 13})
     for a, b in edges:
         if a in nodes and b in nodes:
