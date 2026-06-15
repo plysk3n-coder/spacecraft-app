@@ -677,13 +677,20 @@ if _sel == "tab_ship":
         _prod, _use = _tot.get("PowerProduction", 0), _tot.get("EngineConsumption", 0)
         _force, _weight = _tot.get("EngineForce", 0), _tot.get("ShipWeight", 0)
         _cost = sum(c["price"] for c in _chosen)
-        _m = st.columns(6)
+        _uc = graph_data.unit_costs(sheets, items)
+        _rawcost = sum(_uc.get(c["id"], 0) or 0 for c in _chosen)
+        _heatcap = _tot.get("HeatCapacity", 0)
+        _heatgen = sum(v for k, v in _tot.items() if "HeatGeneration" in k)
+        _m = st.columns(4)
         _m[0].metric(T("sb_syspoints"), f"{_sup - _req:.0f}", delta=f"{_sup:.0f} / {_req:.0f}", delta_color="off")
         _m[1].metric(T("sb_power"), f"{_prod - _use:.0f}", delta=f"{_prod:.0f} / {_use:.0f}", delta_color="off")
         _m[2].metric(T("sb_weightforce"), f"{_force - _weight:.0f}", delta=f"{_force:.0f} / {_weight:.0f}", delta_color="off")
         _m[3].metric(T("sb_cargo_t"), f"{_tot.get('StorageUnits', 0):.0f}")
-        _m[4].metric(T("sb_hull"), f"{_tot.get('Hull', 0):.0f}")
-        _m[5].metric(T("sb_cost"), f"{_cost:.0f}")
+        _m2 = st.columns(4)
+        _m2[0].metric(T("sb_hull"), f"{_tot.get('Hull', 0):.0f}")
+        _m2[1].metric(T("sb_heat"), f"{_heatcap - _heatgen:.0f}", delta=f"{_heatcap:.0f} / {_heatgen:.0f}", delta_color="off")
+        _m2[2].metric(T("sb_cost"), f"{_cost:.0f}")
+        _m2[3].metric(T("sb_rawcost"), f"{_rawcost:.0f}")
         if _sup - _req < 0:
             st.warning(T("sb_bad_sys"))
         elif _weight > 0 and _force < _weight:
@@ -723,11 +730,17 @@ if _sel == "tab_base":
             _chosen += [_c] * max(_q, 0)
         _tot = build_data.sum_attrs(_chosen)
         _cost = sum(c["price"] for c in _chosen)
+        _eoffer, _edem = _tot.get("EnergyOffer", 0), _tot.get("EnergyDemand", 0)
+        _bpcap, _bpused = _tot.get("MaxBuildPoints", 0), _tot.get("BuildPointsCost", 0)
         _m = st.columns(4)
-        _m[0].metric(T("bb_energy"), f"{_tot.get('EnergyOffer', 0):.0f}")
-        _m[1].metric(T("bb_footprint"), f"{_tot.get('BuildPointsCost', 0):.0f}")
+        _m[0].metric(T("bb_energy_net"), f"{_eoffer - _edem:.0f}", delta=f"{_eoffer:.0f} / {_edem:.0f}", delta_color="off")
+        _m[1].metric(T("bb_buildpts"), f"{_bpcap - _bpused:.0f}", delta=f"{_bpcap:.0f} / {_bpused:.0f}", delta_color="off")
         _m[2].metric(T("bb_storage_t"), f"{_tot.get('SolidStorage', 0):.0f}")
         _m[3].metric(T("bb_buildcost"), f"{_cost:.0f}")
+        if _eoffer - _edem < 0:
+            st.warning(T("bb_bad_energy"))
+        if _bpcap - _bpused < 0:
+            st.warning(T("bb_bad_buildpts"))
         _am = build_data.attr_meta(sheets)
         _rows = [{T("sb_stat"): _am.get(k, (k, ""))[0] + (f" [{_am.get(k, ('', ''))[1]}]" if _am.get(k, ("", ""))[1] else ""),
                   T("sb_total"): round(v, 2)} for k, v in sorted(_tot.items()) if k in build_data.BASE_KEYS]

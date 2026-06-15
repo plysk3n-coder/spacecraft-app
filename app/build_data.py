@@ -32,9 +32,10 @@ BASE_CATS = [
 
 # attributs resumes (ship) : id cdb -> on les somme et on calcule des bilans
 SHIP_KEYS = ["SystemSupport", "SystemRequirement", "PowerProduction", "EngineConsumption",
-             "EngineForce", "ShipWeight", "StorageUnits", "PowerStorage", "Hull", "Frame"]
-BASE_KEYS = ["EnergyOffer", "FuelConsumption", "BuildPointsCost", "SolidStorage",
-             "EnergyStockCapacity", "StorageUnits"]
+             "EngineForce", "ShipWeight", "StorageUnits", "PowerStorage", "Hull", "Frame",
+             "HeatCapacity", "BoosterHeatGeneration"]
+BASE_KEYS = ["EnergyOffer", "EnergyDemand", "FuelConsumption", "MaxBuildPoints", "BuildPointsCost",
+             "SolidStorage", "FluidStorage", "EnergyStockCapacity", "DroneRouteCount"]
 
 
 def attr_meta(sheets):
