@@ -95,28 +95,32 @@ def craft_chain(sheets, items, product_id, max_depth=4, max_nodes=70):
     return nodes, edges
 
 
-def craft_tree_rows(sheets, items, product_id, max_depth=4, max_rows=250):
-    """Nomenclature indentee (DFS) : lignes {depth,name,qty,price,station,craftable}."""
+def craft_tree_rows(sheets, items, product_id, qty=1.0, max_depth=4, max_rows=250):
+    """Nomenclature indentee (DFS) mise a l'echelle pour `qty` du produit final.
+    Chaque ligne = quantite TOTALE de ce composant requise (tient compte des sorties
+    multiples : runs = besoin / out_qty). Lignes {depth,name,qty,price,station,craftable}."""
     best = best_recipes(sheets, items)
     stations = _item_station(sheets)
     nm = lambda i: items.get(i, {}).get("name", i)
     pr = lambda i: items.get(i, {}).get("price", 0)
+    fmt = lambda q: int(q) if abs(q - round(q)) < 1e-9 else round(q, 2)  # entier propre sinon 2 decimales
     rows, seen = [], set()
 
-    def rec(i, qty, depth):
+    def rec(i, need, depth):
         if len(rows) >= max_rows:
             return
         craftable = i in best
-        rows.append({"depth": depth, "name": nm(i), "qty": qty, "price": pr(i),
+        rows.append({"depth": depth, "name": nm(i), "qty": fmt(need), "price": pr(i),
                      "station": stations.get(i, "") if craftable else "", "craftable": craftable})
         if depth >= max_depth or i in seen or not craftable:
             return
         seen.add(i)
-        ins, _ = best[i]
+        ins, oq = best[i]
+        runs = need / (oq or 1)
         for ii, q in ins:
-            rec(ii, q, depth + 1)
+            rec(ii, q * runs, depth + 1)
 
-    rec(product_id, 1, 0)
+    rec(product_id, float(qty), 0)
     return rows
 
 

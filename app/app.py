@@ -234,7 +234,7 @@ with tab3:
     cmode = cc[3].radio(T("view"), ["v_table", "v_graph"], format_func=T, key="cmode")
 
     if cmode == "v_table":
-        rows = graph_data.craft_tree_rows(sheets, items, sel_prod, max_depth=depth)
+        rows = graph_data.craft_tree_rows(sheets, items, sel_prod, qty=qtymake, max_depth=depth)
         dft = pd.DataFrame([{
             T("col_comp"): (("　" * (r["depth"] - 1) + "└ ") if r["depth"] else "") + r["name"],
             T("col_qty2"): r["qty"], T("col_price"): r["price"], T("col_station"): r["station"]}
