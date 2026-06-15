@@ -55,6 +55,11 @@ UI = {
     "fac_c_machines": {"fr": "Machines", "en": "Machines"},
     "fac_c_mrate":  {"fr": "Débit/machine", "en": "Rate/machine"},
     "factory_total": {"fr": "Total : {n} machines.", "en": "Total: {n} machines."},
+    "factory_machines": {"fr": "Machines (total)", "en": "Machines (total)"},
+    "factory_energy": {"fr": "Énergie/h (total)", "en": "Energy/h (total)"},
+    "factory_raw":  {"fr": "🧱 Matières premières à fournir (u/h)", "en": "🧱 Raw materials to supply (u/h)"},
+    "col_minlvl":   {"fr": "Niv. minage", "en": "Mining lvl"},
+    "where_minlvl": {"fr": "⛏️ Niveau de bureau de minage requis : {lvl}", "en": "⛏️ Mining bureau level required: {lvl}"},
     # --- Permis : 2 sous-vues ---
     "permit_view_unlock": {"fr": "🔍 Débloquer un item", "en": "🔍 Unlock an item"},
     "permit_view_tree": {"fr": "🌳 Arbre complet", "en": "🌳 Full tree"},

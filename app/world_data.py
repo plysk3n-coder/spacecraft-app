@@ -87,6 +87,15 @@ def build_world(sheets):
     minable = sorted(rid for rid, r in resources.items()
                      if r.get("type") in _MINABLE_TYPES or r.get("items"))
 
+    # niveaux de bureau de minage : resource_id / item_id -> niveau requis (table miningBureau)
+    mining_res, mining_item = {}, {}
+    for m in cdb_model._lines(sheets, "miningBureau"):
+        lvl = m.get("level")
+        if m.get("resource"):
+            mining_res.setdefault(m["resource"], lvl)
+        if m.get("item"):
+            mining_item.setdefault(m["item"], lvl)
+
     # hierarchie NOMMEE authored du cdb : sector_name -> {system_name -> [lieux]} (+ map nom->id systeme)
     sysn = {l["id"]: (l.get("name") or l["id"]) for l in cdb_model._lines(sheets, "system")}
     pln = {l["id"]: (l.get("name") or l["id"]) for l in cdb_model._lines(sheets, "planet")}
@@ -109,6 +118,7 @@ def build_world(sheets):
     return {"sector_items": sector_items, "sector_res": sector_res,
             "item_sectors": item_sectors, "item_sources": item_sources,
             "deposits": deposits, "minable": minable,
+            "mining_res": mining_res, "mining_item": mining_item,
             "named_universe": named_universe, "system_name2id": system_name2id,
             "sector_name": {sid: s.get("name", sid) for sid, s in sectors.items()},
             "sector_reslevel": {sid: s.get("resLevel") for sid, s in sectors.items()},

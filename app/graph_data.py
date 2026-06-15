@@ -158,14 +158,16 @@ def factory_plan(sheets, items, product_time, product_id, target_per_h, max_dept
         if len(rows) >= max_rows:
             return
         pt = product_time.get(i)
-        machines, station, mrate = None, "", 0.0
+        machines, station, mrate, energy_h = None, "", 0.0, 0.0
         if pt and pt[0]:
-            t_auto, oq_t, station = pt
+            t_auto, oq_t, station = pt[0], pt[1], pt[2]
+            power = pt[3] if len(pt) > 3 else 0
             mrate = oq_t / t_auto * 3600.0  # unités/h par machine
             machines = math.ceil(rate / mrate) if mrate else None
+            energy_h = (rate / (oq_t or 1)) * (power or 0)  # runs/h × énergie/craft
         rows.append({"depth": depth, "name": nm(i), "rate": round(rate, 2),
                      "machines": machines, "machine_rate": round(mrate, 1) if mrate else None,
-                     "station": station})
+                     "energy_h": round(energy_h), "station": station})
         if depth >= max_depth or i in seen or i not in best:
             return
         seen.add(i)

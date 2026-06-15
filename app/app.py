@@ -32,7 +32,7 @@ def load_sheets():
 
 
 @st.cache_data(show_spinner=False)
-def load_world(_schema_v=3):  # _schema_v : bump pour invalider le cache quand world_data change
+def load_world(_schema_v=4):  # _schema_v : bump pour invalider le cache quand world_data change
     return world_data.build_world(cdb_model.load_cdb())
 
 
@@ -145,9 +145,9 @@ df = pd.DataFrame(recipes)
 _product_time = {}
 for _r in recipes:
     if _r.get("unlock") == "Permit":
-        _product_time.setdefault(_r["product_id"], (_r.get("t_auto") or 0, _r.get("out_qty") or 1, _r.get("station") or ""))
+        _product_time.setdefault(_r["product_id"], (_r.get("t_auto") or 0, _r.get("out_qty") or 1, _r.get("station") or "", _r.get("power") or 0))
 for _r in recipes:  # fallback : produits sans recette de base
-    _product_time.setdefault(_r["product_id"], (_r.get("t_auto") or 0, _r.get("out_qty") or 1, _r.get("station") or ""))
+    _product_time.setdefault(_r["product_id"], (_r.get("t_auto") or 0, _r.get("out_qty") or 1, _r.get("station") or "", _r.get("power") or 0))
 
 # --- données partagées entre onglets : gisements + carte de découvertes ---
 _world0 = load_world()
@@ -305,15 +305,27 @@ if _sel == "tab_craftmap":
     st.caption(T("factory_help"))
     target = st.number_input(T("factory_target"), min_value=1, value=60, step=10, key="fac_target")
     fac = graph_data.factory_plan(sheets, items, _product_time, sel_prod, target_per_h=target, max_depth=depth)
+    _nmach = sum(r["machines"] for r in fac if r["machines"])
+    _energy = sum(r["energy_h"] for r in fac)
+    _fm = st.columns(2)
+    _fm[0].metric(T("factory_machines"), f"{_nmach}")
+    _fm[1].metric(T("factory_energy"), f"{_energy:,}".replace(",", " "))
     dff = pd.DataFrame([{
         T("col_comp"): (("　" * (r["depth"] - 1) + "└ ") if r["depth"] else "") + r["name"],
         T("fac_c_rate"): r["rate"],
         T("fac_c_machines"): r["machines"] if r["machines"] is not None else "—",
         T("fac_c_mrate"): r["machine_rate"] if r["machine_rate"] is not None else "—",
         T("col_station"): r["station"]} for r in fac])
-    st.dataframe(dff, hide_index=True, width="stretch", height=430)
-    _nmach = sum(r["machines"] for r in fac if r["machines"])
-    st.caption(T("factory_total").format(n=_nmach))
+    st.dataframe(dff, hide_index=True, width="stretch", height=400)
+    _raw = {}
+    for r in fac:
+        if r["machines"] is None:
+            _raw[r["name"]] = _raw.get(r["name"], 0) + r["rate"]
+    if _raw:
+        st.caption(T("factory_raw"))
+        st.dataframe(pd.DataFrame([{T("col_comp"): k, T("fac_c_rate"): round(v, 1)}
+                                   for k, v in sorted(_raw.items(), key=lambda x: -x[1])]),
+                     hide_index=True, width="stretch")
 
 if _sel == "tab_universe":
     st.caption(T("universe_help"))
@@ -362,6 +374,9 @@ if _sel == "tab_where":
     selr = st.selectbox(T("select_res"), mineable, format_func=lambda i: rlabel.get(i, i))
     srcs = w["item_sources"].get(selr, [])
     secs = sorted(w["item_sectors"].get(selr, set()), key=lambda s: (w["sector_reslevel"].get(s) or 99))
+    _mlvl = w.get("mining_item", {}).get(selr)
+    if _mlvl:
+        st.caption(T("where_minlvl").format(lvl=_mlvl))
     if not srcs and not secs:
         st.info(T("where_none"))
     else:
@@ -369,7 +384,8 @@ if _sel == "tab_where":
         with ca:
             st.subheader(T("where_mined"))
             st.dataframe(pd.DataFrame([{T("col_deposit"): s["name"], T("col_type"): s["type"],
-                                        T("col_tier"): s["tier"], T("col_proba"): s["proba"]} for s in srcs]),
+                                        T("col_tier"): s["tier"], T("col_proba"): s["proba"],
+                                        T("col_minlvl"): str(w.get("mining_res", {}).get(s.get("res")) or "—")} for s in srcs]),
                          hide_index=True, width="stretch")
         with cb:
             st.subheader(T("where_sectors"))
