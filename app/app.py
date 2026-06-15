@@ -11,6 +11,7 @@ import extract_cdb
 import i18n
 import graph_data
 import build_data
+import permit_data
 import world_data
 import discoveries
 import cloud_store
@@ -58,6 +59,11 @@ def fetch_bans_cached():
 @st.cache_data(show_spinner=False)
 def res_translations(lang):
     return i18n.load_translations(lang).get("resource", {})
+
+
+@st.cache_data(show_spinner=False)
+def sheet_translations(lang, sheet):
+    return i18n.load_translations(lang).get(sheet, {})
 
 
 # --- langue : drapeaux cliquables en haut de page ---
@@ -181,7 +187,7 @@ world = w = _world0
 # (survit aux reruns ET au F5, comme rg/sy) + session_state via la clé du widget.
 _qp = st.query_params
 _keys = ["tab_recipes", "tab_items", "tab_craftmap", "tab_universe", "tab_where", "tab_mymap",
-         "tab_ship", "tab_base"]
+         "tab_ship", "tab_base", "tab_permits"]
 if admin:
     _keys.append("tab_admin")
 if st.session_state.get("navtab") not in _keys:
@@ -656,6 +662,30 @@ if _sel == "tab_base":
                   T("sb_total"): round(v, 2)} for k, v in sorted(_tot.items()) if k in build_data.BASE_KEYS]
         if _rows:
             st.dataframe(pd.DataFrame(_rows), hide_index=True, width="stretch")
+
+# --- Onglet PERMIS / TECH : arbre des licences + voie de déblocage d'un item ---
+if _sel == "tab_permits":
+    st.caption(T("permit_help"))
+    _ptr = sheet_translations(lang, "permit")
+    _pnodes, _pedges, _item2p = permit_data.build_tree(sheets, items, _ptr)
+    _unlockable = sorted(_item2p.keys(), key=lambda i: items.get(i, {}).get("name", i))
+    _q = st.selectbox(T("permit_search"), ["—"] + _unlockable,
+                      format_func=lambda i: "—" if i == "—" else items.get(i, {}).get("name", i), key="permit_q")
+    _hl = set()
+    if _q != "—":
+        _r = permit_data.unlock_cost(_pnodes, _item2p, _q)
+        if _r:
+            _hl = set(_r["chain"])
+            st.success(T("permit_found").format(item=items.get(_q, {}).get("name", _q),
+                                                permit=_pnodes[_r["permit"]]["name"], total=_r["total"], n=len(_r["chain"])))
+            st.dataframe(pd.DataFrame([{
+                T("permit_c_name"): _pnodes[p]["name"], T("permit_c_cost"): _pnodes[p]["cost"],
+                T("permit_c_unlocks"): ", ".join(_pnodes[p]["unlocks"][:6]) + (" …" if len(_pnodes[p]["unlocks"]) > 6 else "")}
+                for p in _r["chain"]]), hide_index=True, width="stretch",
+                column_config={T("permit_c_cost"): st.column_config.NumberColumn(format="%d")})
+        else:
+            st.info(T("permit_none"))
+    components.html(permit_data.permit_html(_pnodes, _pedges, _hl), height=680)
 
 # --- Onglet ADMIN (visible uniquement par l'admin) : contributeurs + bannissements ---
 if admin:
