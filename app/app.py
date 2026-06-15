@@ -644,23 +644,24 @@ if _sel == "tab_mymap":
 # --- Onglet SHIP BUILDER : assembler un vaisseau, bilans depuis les stats du cdb ---
 if _sel == "tab_ship":
     st.caption(T("ship_help"))
-    _sgroups = build_data.grouped(sheets, items, build_data.SHIP_CATS)
-    _sg = {g["key"]: g for g in _sgroups}
-    _cg = _sg.get("sb_cockpit")
-    if not _cg:
+    _ttr = sheet_translations(lang, "itemType")  # libellés = noms de catégorie du jeu
+    _CAT_OVR = {"MiningTool": "ShipGatheringTools"}  # header du jeu = nom du parent (« Collecte »)
+    _clabel = lambda t: _ttr.get(_CAT_OVR.get(t, t)) or _ttr.get(t) or t
+    _cocklist = build_data.grouped(sheets, items, [build_data.COCKPIT_TYPE])
+    if not _cocklist:
         st.info(T("sb_empty"))
     else:
         _picks = []
-        _co = _cg["list"]
-        _ci = st.selectbox(T("sb_cockpit"), range(len(_co)),
+        _co = _cocklist[0]["list"]
+        _ci = st.selectbox(_clabel(build_data.COCKPIT_TYPE), range(len(_co)),
                            format_func=lambda i: f"{_co[i]['name']}  ·  {_co[i]['price']:.0f}", key="ship_cockpit")
         _picks.append(_co[_ci])
-        _others = [g for g in _sgroups if g["key"] != "sb_cockpit"]
+        _sgroups = build_data.grouped(sheets, items, build_data.ship_module_types(sheets))
         _oc = st.columns(3)
-        for _n, _g in enumerate(_others):
+        for _n, _g in enumerate(_sgroups):
             with _oc[_n % 3]:
                 _opts = _g["list"]
-                for _s in st.multiselect(T(_g["key"]), range(len(_opts)),
+                for _s in st.multiselect(_clabel(_g["cat"]), range(len(_opts)),
                                          format_func=lambda i, o=_opts: f"{o[i]['name']}  ·  {o[i]['price']:.0f}",
                                          key="ship_" + _g["cat"]):
                     _picks.append(_opts[_s])
@@ -708,13 +709,14 @@ if _sel == "tab_ship":
 # --- Onglet BASE BUILDER : planifier une base, bilan énergie/coût ---
 if _sel == "tab_base":
     st.caption(T("base_help"))
-    _bgroups = build_data.grouped(sheets, items, build_data.BASE_CATS)
+    _bttr = sheet_translations(lang, "itemType")
+    _bgroups = build_data.grouped(sheets, items, build_data.BASE_TYPES)
     _picks = []
     _bc = st.columns(3)
     for _n, _g in enumerate(_bgroups):
         with _bc[_n % 3]:
             _opts = _g["list"]
-            for _s in st.multiselect(T(_g["key"]), range(len(_opts)),
+            for _s in st.multiselect(_bttr.get(_g["cat"]) or _g["cat"], range(len(_opts)),
                                      format_func=lambda i, o=_opts: f"{o[i]['name']}  ·  {o[i]['price']:.0f}",
                                      key="base_" + _g["cat"]):
                 _picks.append(_opts[_s])
