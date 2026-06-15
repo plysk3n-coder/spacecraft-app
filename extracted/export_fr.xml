@@ -1,4 +1,4 @@
-<cdb project="Spacecraft" version="4" lang="fr" date="2026-06-11 10:18:55" revision="21531" softwareVersion="2">
+<cdb project="Spacecraft" version="5" lang="fr" date="2026-06-15 12:33:11" revision="21874" softwareVersion="2">
     <sheet name="icon">
         <CloseWindow>
             <text>Fermer</text>
@@ -406,12 +406,18 @@
             <text>NXT</text>
         </ShopPageCredits>
         <ShopItemBuy>
-            <text>Acheter en échange de &lt;soft-money&gt;::cost::&lt;/soft-money&gt;</text>
+            <text>Débloquer en échange de &lt;soft-money&gt;::cost::&lt;/soft-money&gt;</text>
         </ShopItemBuy>
         <RemovePathwayExit>
             <text>Supprimer sortie</text>
             <desc>Supprime le point de sortie d'un couloir et permet de le placer ailleurs.</desc>
         </RemovePathwayExit>
+        <MaskChatMessage>
+            <desc>Masquer la discussion</desc>
+        </MaskChatMessage>
+        <ShowChatMessage>
+            <desc>Afficher la discussion</desc>
+        </ShowChatMessage>
         <SendFeedback>
             <desc>Signaler des bugs et envoyer des commentaires</desc>
         </SendFeedback>
@@ -707,6 +713,10 @@
             <desc>Supprimez la commande du marché.</desc>
             <props.confirmText>Les frais de commande ne sont pas remboursables</props.confirmText>
         </MarketDeleteOrder>
+        <BuyoutCap>
+            <text>Limite de crédits</text>
+            <desc>La Compagnie accepte de vous acheter des objets dans une certaine limite. Votre limite actuelle se réinitialise à un rythme de &lt;price&gt;::daily::&lt;/price&gt;/jour, jusqu'à &lt;price&gt;::max::&lt;/price&gt; au maximum.<br/><br/>Pour augmenter cette limite, vous pouvez :<br/><br/>- débloquer des *permis* : lorsque vous débloquez un nouveau permis, la Compagnie réinitialise votre limite.<br/><br/>- améliorer votre niveau *social* : obtenir de l'expérience sociale en accomplissant des *contrats de corpo*. Terminez des contrats de haut niveau pour obtenir davantage d'expérience sociale.<br/><br/>En terminant des *contrats de corpo*, vous obtenez également des [CorpoCredits], qui peuvent être convertis en [Credits].<br/><br/>De plus, vous pouvez vendre vos marchandises à d'autres joueurs via le *centre de commerce* le plus proche.</desc>
+        </BuyoutCap>
         <Transfer>
             <text>Transférer</text>
         </Transfer>
@@ -1220,9 +1230,6 @@
                 </no_services>
             </value.group>
         </ui_elevator>
-        <ui_max_thrust>
-            <value.text>MAX</value.text>
-        </ui_max_thrust>
         <ui_sector_label>
             <value.text>Secteur ::name::</value.text>
         </ui_sector_label>
@@ -1245,9 +1252,6 @@
                 </line3>
             </value.list>
         </ui_item_column_name>
-        <ui_planet_fully_discovered>
-            <value.text>Planète entièrement explorée</value.text>
-        </ui_planet_fully_discovered>
         <ui_level_up>
             <value.text>Niveau ::level::</value.text>
         </ui_level_up>
@@ -1270,6 +1274,9 @@
         <ui_permit_unlocked>
             <value.text>Permis débloqué : *::name::*</value.text>
         </ui_permit_unlocked>
+        <ui_corpo_license_unlocked>
+            <value.text>Licence obtenue : *::name::*</value.text>
+        </ui_corpo_license_unlocked>
         <ui_corpo_contract_completed>
             <value.text>&lt;img src="icon/GreenCheck"/&gt; Contrat rempli : *::title::*</value.text>
         </ui_corpo_contract_completed>
@@ -1488,6 +1495,30 @@
         <ui_emote_selector>
             <value.text>Jouer emote</value.text>
         </ui_emote_selector>
+        <ui_global_shutdown>
+            <value.text>Une fermeture planifiée du serveur aura bientôt lieu.</value.text>
+        </ui_global_shutdown>
+        <shop_item_confirm>
+            <value.text>Débloquer en échange de &lt;soft-money&gt;::cost::&lt;/soft-money&gt; ?</value.text>
+        </shop_item_confirm>
+        <shop_thank_you>
+            <value.text>Merci d'avoir acheté cet objet exceptionnel. La Compagnie vous remercie et espère vous revoir très bientôt.</value.text>
+        </shop_thank_you>
+        <shop_info>
+            <value.text>La boutique propose uniquement des articles cosmétiques à la pointe de la mode galactique conçus pour soigner votre style.<br/>La boutique n'est PAS liée à la cupide Compagnie : elle est gérée par les sympathiques « Devs », un collectif d'artistes et ingénieurs qui se dévouent entièrement à votre bonheur dans cet univers.<br/>Les « Devs » s'engagent à ce qu'aucun article de la boutique n'accorde d'avantages en jeu (à part celui d'avoir la classe). C'est promis.</value.text>
+        </shop_info>
+        <transfer_quadrant_title>
+            <value.text>Changement de quadrant</value.text>
+        </transfer_quadrant_title>
+        <transfer_quadrant_help>
+            <value.text>Veuillez sélectionner un quadrant cible. Veuillez noter que la liste comprend uniquement les quadrants de votre région actuelle *(::region::)*.</value.text>
+        </transfer_quadrant_help>
+        <transfer_quadrant_confirm>
+            <value.text>Vous êtes sur le point de transférer votre compte vers le quadrant *::quadrant::*. En conséquence :<br/>- vous perdrez toutes vos bases spatiales ;<br/>- vous perdrez votre corpo ;<br/>- vous perdrez votre progression sur la carte de la galaxie ;<br/>- vous ne conserverez qu'un seul vaisseau (*::ship::*) ;<br/>- toutes vos missions en cours seront réinitialisées.<br/>Si cela vous convient, veuillez confirmer votre choix en saisissant les mots suivants ci-dessous : « &lt;confirm&gt;::confirm::&lt;/confirm&gt; ».</value.text>
+        </transfer_quadrant_confirm>
+        <ui_gain_xp>
+            <value.text>+::xp:: EXP</value.text>
+        </ui_gain_xp>
         <options_volume>
             <value.group>
                 <global>
@@ -2066,9 +2097,6 @@
         <building_turn_off>
             <value.text>Désactiver</value.text>
         </building_turn_off>
-        <building_exchange>
-            <value.text>Sélectionner objets</value.text>
-        </building_exchange>
         <building_energy_management>
             <value.text>Gestion de l'énergie</value.text>
         </building_energy_management>
@@ -2081,9 +2109,6 @@
         <building_status>
             <value.text>État</value.text>
         </building_status>
-        <building_efficiency>
-            <value.text>Efficacité</value.text>
-        </building_efficiency>
         <building_build_points>
             <value.text>Encombrement</value.text>
         </building_build_points>
@@ -2093,16 +2118,7 @@
         <building_deco_points>
             <value.text>Décoration</value.text>
         </building_deco_points>
-        <building_networks>
-            <value.text>Réseaux</value.text>
-        </building_networks>
-        <building_power_state>
-            <value.text>État : ::value::</value.text>
-        </building_power_state>
-        <building_load>
-            <value.text>Chargement : ::value:: %</value.text>
-        </building_load>
-        <building_building_status_values>
+        <building_status_values>
             <value.list>
                 <line0>
                     <text>En chantier</text>
@@ -2135,23 +2151,7 @@
                     <text>Limite de construction dépassée</text>
                 </line9>
             </value.list>
-        </building_building_status_values>
-        <building_power_state_values>
-            <value.list>
-                <line0>
-                    <text>Efficace</text>
-                </line0>
-                <line1>
-                    <text>Surcharge</text>
-                </line1>
-                <line2>
-                    <text>Critique</text>
-                </line2>
-                <line3>
-                    <text>En panne</text>
-                </line3>
-            </value.list>
-        </building_power_state_values>
+        </building_status_values>
         <building_select_fuel>
             <value.text>Sélectionner un carburant</value.text>
         </building_select_fuel>
@@ -2164,9 +2164,6 @@
         <building_liquid>
             <value.text>Liquide</value.text>
         </building_liquid>
-        <building_progress>
-            <value.text>Progression</value.text>
-        </building_progress>
         <building_logistics>
             <value.text>Logistique</value.text>
         </building_logistics>
@@ -2215,6 +2212,9 @@
         <building_processing>
             <value.text>Fabrication</value.text>
         </building_processing>
+        <building_no_cistern>
+            <value.text>Aucune citerne disponible</value.text>
+        </building_no_cistern>
         <building_farm_temperature>
             <value.group>
                 <farm_cold>
@@ -2345,21 +2345,12 @@
         <logistics_start_route>
             <value.text>Commencer itinéraire</value.text>
         </logistics_start_route>
-        <logistics_create_route>
-            <value.text>Créer itinéraire</value.text>
-        </logistics_create_route>
         <logistics_modify_route>
             <value.text>Modifier itinéraire</value.text>
         </logistics_modify_route>
         <logistics_edit_route>
             <value.text>Changer itinéraire</value.text>
         </logistics_edit_route>
-        <logistics_send_shuttle>
-            <value.text>Envoyer navette</value.text>
-        </logistics_send_shuttle>
-        <logistics_return_here>
-            <value.text>Revenir ici</value.text>
-        </logistics_return_here>
         <logistics_returning_route>
             <value.text>Itinéraire de retour</value.text>
         </logistics_returning_route>
@@ -2384,6 +2375,15 @@
         <logistics_name_must_not_be_empty>
             <value.text>Le nom ne peut pas être vide.</value.text>
         </logistics_name_must_not_be_empty>
+        <logistics_station_no_storage>
+            <value.text>Cette station ne dispose d'aucun entrepôt de corpo disponible pour la livraison de matériaux.</value.text>
+        </logistics_station_no_storage>
+        <logistics_station_no_storage_possible>
+            <value.text>Seules les stations disposant d'un centre de commerce peuvent recevoir des livraisons par navette.</value.text>
+        </logistics_station_no_storage_possible>
+        <logistics_target_too_far>
+            <value.text>La cible se trouve au-delà de la portée maximale de votre navette.</value.text>
+        </logistics_target_too_far>
         <market_store_name>
             <value.text>Entrepôt de la corpo</value.text>
         </market_store_name>
@@ -2414,12 +2414,6 @@
         <market_balance>
             <value.text>Solde</value.text>
         </market_balance>
-        <market_current_sell_amount>
-            <value.text>Votre niveau de confiance actuel vous permet de vendre &lt;price&gt;::total::&lt;/price&gt; de marchandises à *la Compagnie*.<br/>Vous regagnerez ensuite &lt;price&gt;::daily::&lt;/price&gt;/jour ou lors de l'obtention d'un permis.</value.text>
-        </market_current_sell_amount>
-        <market_maxed_sell>
-            <value.text>Vous avez vendu le nombre maximal de ressources autorisé aujourd'hui.<br/>Si vous voulez vendre plus de marchandises, allez au *centre de commerce*.</value.text>
-        </market_maxed_sell>
         <market_confirmBuyoutSell>
             <value.text>Vendre ::count:: composants pour &lt;price&gt;::price::&lt;/price&gt; ?</value.text>
         </market_confirmBuyoutSell>
@@ -2862,9 +2856,6 @@
         <cistern_other>
             <value.text>Citerne de base</value.text>
         </cistern_other>
-        <popups_planet_discover_progress>
-            <value.text>DÉCOUVERTE</value.text>
-        </popups_planet_discover_progress>
         <permits_requires>
             <value.text>Nécessite : &lt;bad&gt;::name::&lt;/bad&gt;</value.text>
         </permits_requires>
@@ -3119,6 +3110,18 @@
         <DarkInstance4>
             <name>DarkInstance</name>
         </DarkInstance4>
+        <IntelligenceCenter5>
+            <name>Centre de renseignements local</name>
+        </IntelligenceCenter5>
+        <IntelligenceCenter6>
+            <name>Centre de renseignements local</name>
+        </IntelligenceCenter6>
+        <IntelligenceCenter7>
+            <name>Centre de renseignements local</name>
+        </IntelligenceCenter7>
+        <Warehouse5>
+            <name>Entrepôt de la Compagnie</name>
+        </Warehouse5>
         <CorpoTrainingCenter>
             <name>CTCP de la Compagnie</name>
         </CorpoTrainingCenter>
@@ -5028,6 +5031,41 @@
             <props.name>Olivia Laurent</props.name>
             <props.job>Agent de maintenance</props.job>
         </CivilStation_NPCNeutral2>
+        <QuadrantManager>
+            <dialog>
+                <Start>
+                    <text>La galaxie est vaste ! Vous vous trouvez actuellement dans le quadrant *::quadrant::*.</text>
+                    <choices>
+                        <line0>
+                            <props.subText>Qu'est-ce qu'un quadrant ?</props.subText>
+                        </line0>
+                        <line1>
+                            <props.subText>Comment changer de quadrant ?</props.subText>
+                        </line1>
+                    </choices>
+                </Start>
+                <QuadrantHelp>
+                    <text>La galaxie est divisée en de nombreux quadrants isolés les uns des autres. Chaque quadrant est unique, mais tous offrent les mêmes opportunités aux explorateurs et exploratrices. Il n'est généralement pas utile de changer de quadrant. Cependant, si vous souhaitez créer une corpo avec des amis d'un autre quadrant, il est possible d'en changer.</text>
+                </QuadrantHelp>
+                <QuadrantChange>
+                    <text>Changer de quadrant est difficile et coûteux. Vous perdrez toute votre progression d'exploration, votre corpo actuelle si vous en avez une ainsi que toutes vos bases. Vous ne pourrez conserver qu'un seul vaisseau. Si cela vous intéresse quand même, je peux vous aider.</text>
+                    <choices>
+                        <line0>
+                            <props.subText>Je souhaite changer de quadrant.</props.subText>
+                        </line0>
+                    </choices>
+                </QuadrantChange>
+                <QuadrantSelect>
+                    <text>Vous avez changé d'avis ? À vous de voir.</text>
+                </QuadrantSelect>
+                <QuadrantTimeout>
+                    <text>On dirait que vous avez déjà changé de quadrant récemment. Vous ne pouvez pas en changer trop souvent. Revenez me voir demain ou un autre jour pour réessayer.</text>
+                </QuadrantTimeout>
+                <Overweight>
+                    <text>On dirait que vous transportez trop d'objets. Réessayez quand le contenu de votre inventaire rentrera dans la soute de votre vaisseau.</text>
+                </Overweight>
+            </dialog>
+        </QuadrantManager>
         <AbandonedControlBase_CrafterElement>
             <props.actionDetails>Atelier</props.actionDetails>
         </AbandonedControlBase_CrafterElement>
@@ -9091,6 +9129,10 @@
         <PlayerFightSkillsAccess>
             <name>Configurer les compétences de combat</name>
         </PlayerFightSkillsAccess>
+        <SoldCapBonus>
+            <name>Réputation auprès de la Compagnie</name>
+            <props.desc>Améliore votre réputation auprès de la Compagnie et la quantité de ressources que vous pouvez lui vendre.</props.desc>
+        </SoldCapBonus>
         <Exploration>
             <name>Exploration</name>
             <props.desc>L'exploration est l'art de voyager vers des lieux inconnus, là où personne n'a encore jamais mis le pied, et de repousser les frontières du territoire humain dans la galaxie.<br/>Réalisez des *découvertes de ressources planétaires* pour gagner de l'expérience d'exploration.</props.desc>
@@ -9105,7 +9147,7 @@
         </Science>
         <Social>
             <name>Social</name>
-            <props.desc>La galaxie est une immense compétition entre corpos. Votre niveau social représente l'ensemble de vos accomplissements personnels.<br/>Gagnez de l'expérience sociale en rejoignant une corpo, et à la fin de chaque saison en fonction du *rang* de celle-ci.</props.desc>
+            <props.desc>La galaxie est une immense compétition entre corpos. Votre niveau social représente l'ensemble de vos accomplissements personnels.<br/>Gagnez de l'expérience sociale en rejoignant une corpo, puis en terminant des *contrats de corpo*.</props.desc>
         </Social>
         <Combat>
             <name>Combat</name>
@@ -10005,7 +10047,7 @@
                     <text>resGen.csv généré</text>
                 </Generated>
                 <AlreadyGenerated>
-                    <text>resGen.csv déjà généré</text>
+                    <text>Planètes déjà générées</text>
                 </AlreadyGenerated>
             </texts>
         </ResGenCsv>
@@ -10313,6 +10355,9 @@
                 <ShuttlePadTransit>
                     <text>&lt;bad&gt;Démantèlement impossible : *::name::*.<br/>Attendez d'abord le retour des navettes ou abandonnez-les.&lt;/bad&gt;</text>
                 </ShuttlePadTransit>
+                <ErrorNoAccess>
+                    <text>&lt;bad&gt;*::name::* : démantèlement impossible.<br/>Vous ne disposez pas des droits d'accès à cette base.&lt;/bad&gt;</text>
+                </ErrorNoAccess>
             </texts>
         </Dismantle>
         <Deploy>
@@ -10377,13 +10422,24 @@
                     <text>Terrain accidenté</text>
                 </GroundNotFlat>
                 <Underwater>
-                    <text>Sous l'eau</text>
+                    <text>Déploiement impossible sous l'eau</text>
                 </Underwater>
+                <NoDepositNearby>
+                    <text>&lt;bad&gt;Avertissement :&lt;/bad&gt; aucun *gisement* trouvé à proximité.<br/>Impossible d'extraire des ressources uniques.</text>
+                </NoDepositNearby>
+                <BaseInTheDark>
+                    <text>&lt;bad&gt;Avertissement :&lt;/bad&gt; cette base est située sur la face cachée de la planète.<br/>Les panneaux solaires y sont inefficaces.</text>
+                </BaseInTheDark>
             </texts>
         </Deploy>
         <MoveBuilding>
             <name>Déplacer bâtiment</name>
             <desc>Déplacez un bâtiment.</desc>
+            <texts>
+                <ChooseTarget>
+                    <text>Choisir un bâtiment à déplacer</text>
+                </ChooseTarget>
+            </texts>
         </MoveBuilding>
         <TeleportToShip>
             <name>Téléportation au vaisseau</name>
@@ -10698,6 +10754,18 @@
         <P_Social1>
             <name>Cadeau</name>
         </P_Social1>
+        <P_Social2>
+            <name>Ouvrier de corpo</name>
+        </P_Social2>
+        <P_Social3>
+            <name>Stratège de corpo</name>
+        </P_Social3>
+        <P_Social4>
+            <name>Cadre de corpo</name>
+        </P_Social4>
+        <P_Social5>
+            <name>Directeur de corpo</name>
+        </P_Social5>
         <P_Combat5>
             <name>Parrainage expérimental de Luo Ri</name>
         </P_Combat5>
@@ -11603,6 +11671,18 @@
                 </line4>
             </steps>
         </TechnologyLV2>
+        <Dismantle>
+            <title>Déconstruction</title>
+            <goal>Terminez le niveau d'apprentissage de déconstruction.</goal>
+            <steps>
+                <line0>
+                    <text>Construisez 1 ::item:: et équipez-en votre vaisseau.</text>
+                </line0>
+                <line1>
+                    <text>Démantelez un bâtiment inutile de la base.<br/>&lt;small&gt;Vous pouvez trouver des bases abandonnées grâce au *bureau minier*, ou démanteler l'un de vos bâtiments.&lt;/small&gt;</text>
+                </line1>
+            </steps>
+        </Dismantle>
         <BaseLiquids>
             <title>Logistique interplanétaire [1/2]</title>
             <goal>Dans votre [B_Chemical], lancez la production de : ::item::.</goal>
@@ -11671,18 +11751,6 @@
                 </line3>
             </steps>
         </BaseShuttle>
-        <Dismantle>
-            <title>Déconstruction</title>
-            <goal>Terminez le niveau d'apprentissage de déconstruction.</goal>
-            <steps>
-                <line0>
-                    <text>Construisez 1 ::item:: et équipez-en votre vaisseau.</text>
-                </line0>
-                <line1>
-                    <text>Démantelez un bâtiment inutile de la base.<br/>&lt;small&gt;Vous pouvez trouver des bases abandonnées grâce au *bureau minier*, ou démanteler l'un de vos bâtiments.&lt;/small&gt;</text>
-                </line1>
-            </steps>
-        </Dismantle>
         <BaseContractLv2>
             <title>Niveau 2 de corpo</title>
             <goal>Terminez un contrat de corpo de niveau 2.</goal>

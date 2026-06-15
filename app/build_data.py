@@ -71,6 +71,8 @@ def grouped(sheets, items, types):
         lst = []
         for l in by_type.get(t, []):
             iid = l.get("id")
+            if iid not in items:
+                continue  # item masqué (placeholder/déprécié) -> exclu du builder
             lst.append({"id": iid,
                         "name": items.get(iid, {}).get("name", iid),
                         "price": items.get(iid, {}).get("price", 0) or 0,

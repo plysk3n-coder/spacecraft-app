@@ -26,6 +26,8 @@ def build_tree(sheets, items, permit_tr=None):
         if not p.get("name") or p.get("pos_x") is None:
             continue  # ignore Locked/Deprecated/non positionnés
         pid = p["id"]
+        if cdb_model.is_placeholder(permit_tr.get(pid) or p.get("name")):
+            continue  # [NOT IMPL], etc.
         unl = p.get("unlocks") or {}
         names, ids = [], []
         for cu in unl.get("craft", []):

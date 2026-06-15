@@ -32,7 +32,7 @@ def load_sheets():
 
 
 @st.cache_data(show_spinner=False)
-def load_world(_schema_v=4):  # _schema_v : bump pour invalider le cache quand world_data change
+def load_world(_schema_v=5):  # _schema_v : bump pour invalider le cache quand world_data change
     return world_data.build_world(cdb_model.load_cdb())
 
 
@@ -165,6 +165,8 @@ def _better(a, b):
 _by_nm = {}
 for _d in _rec_ids:
     _nm = dep_name(_d)
+    if cdb_model.is_placeholder(_nm):
+        continue
     if _nm not in _by_nm or _better(_d, _by_nm[_nm]):
         _by_nm[_nm] = _d
 dep_ids = sorted(_by_nm.values(), key=dep_name)

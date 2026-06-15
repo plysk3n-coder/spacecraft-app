@@ -14,7 +14,8 @@ def contracts(sheets, items, unit_cost, contract_tr=None):
     out = []
     for c in cdb_model._lines(sheets, "contract"):
         its = c.get("items") or []
-        if not its or c.get("id") in SKIP:
+        title = contract_tr.get(c["id"]) or c.get("title") or c["id"]
+        if not its or c.get("id") in SKIP or cdb_model.is_placeholder(title):
             continue
         cost = sum((x.get("qty") or 0) * (unit_cost.get(x.get("item"), 0) or 0) for x in its)
         credits = c.get("creditFormula") or 0

@@ -10,6 +10,18 @@ import json, io, os, re
 EXTRACTED = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "extracted", "data.cdb")
 _UNLOCK = {0: "Permit", 1: "Unique BP", 2: "Random BP", 3: "Cannot", 4: "Study", 5: "Dismantle", 6: "Custo"}
 
+# Marqueurs de contenu dev/placeholder du cdb (à masquer partout dans l'UI)
+_PLACEHOLDER = ("[", "???", "placeholder", "template", "débog", "debog", "debug", "deprecat",
+                "not impl", "notimpl", "(sujet", "wip", "todo", "dummy", "fixme", " test")
+
+
+def is_placeholder(name):
+    """True si le nom est une entrée de dev/placeholder (NOT IMPL, DEPRECATED, test, ???, template…)."""
+    if not name or not str(name).strip():
+        return True
+    n = str(name).strip().lower()
+    return n == "???" or n.startswith("test") or any(m in n for m in _PLACEHOLDER)
+
 
 def load_cdb(path=EXTRACTED):
     with io.open(path, "r", encoding="utf-8") as f:
@@ -36,9 +48,12 @@ def build(sheets, price_overrides=None, tr=None):
     items = {}
     for l in _lines(sheets, "item"):
         iid = l.get("id")
+        name = item_tr.get(iid) or l.get("name", iid)
+        if is_placeholder(name):
+            continue  # masque le contenu dev/déprécié (coques épaves, items test, [TODO]…)
         items[iid] = {
             "id": iid,
-            "name": item_tr.get(iid) or l.get("name", iid),
+            "name": name,
             "price": float(l.get("price", 0) or 0),
             "type": l.get("type", ""),
             "lootLevel": l.get("lootLevel", 0),
@@ -99,6 +114,8 @@ def build(sheets, price_overrides=None, tr=None):
         va_per_h = round(va / (t_ref / 3600.0), 2) if t_ref else None
 
         main_out = out_list[0][0] if out_list else l.get("id")
+        if is_placeholder(iname(main_out)):
+            continue  # recette d'un produit dev/déprécié
         recipes.append({
             "id": l.get("id"),
             "product": iname(main_out),

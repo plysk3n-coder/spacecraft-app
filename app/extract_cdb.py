@@ -116,9 +116,20 @@ LANG_DIR = os.path.join(os.path.dirname(OUT))
 
 
 def extract_lang(code="fr", pak_path=None):
-    """Extrait export_<code>.xml (traductions). Retourne le chemin ou None."""
+    """Extrait export_<code>.xml (traductions). Retourne le chemin ou None.
+    Marqueur racine = b'<cdb' (PAS b'<' seul : sinon on attrape le '</cdb>' de l'entrée
+    précédente du pak -> XML mal formé). Trimme aussi la fin au dernier '</cdb>'."""
     out = os.path.join(LANG_DIR, f"export_{code}.xml")
-    path, n = extract_named(f"export_{code}.xml", out, b"<", pak_path)
+    path, n = extract_named(f"export_{code}.xml", out, b"<cdb", pak_path)
+    if path:
+        with io.open(out, "r", encoding="utf-8") as f:
+            s = f.read()
+        a = s.find("<cdb")
+        end = s.rfind("</cdb>")
+        if a > 0 or (end != -1 and end != len(s) - 6):
+            s = s[max(a, 0): end + 6 if end != -1 else len(s)]
+            with io.open(out, "w", encoding="utf-8") as f:
+                f.write(s)
     return path
 
 

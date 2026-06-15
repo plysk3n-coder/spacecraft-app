@@ -85,7 +85,8 @@ def build_world(sheets):
     # d'eau, Gisement de fer...). Exclut Deco/Decal/ShipWreck. Surensemble de `deposits`.
     _MINABLE_TYPES = {1, 2, 3, 4, 5, 6, 9, 10}  # Gravite,Node,Deposit,Shell,Geyser,Pool,Biological,BioRoot
     minable = sorted(rid for rid, r in resources.items()
-                     if r.get("type") in _MINABLE_TYPES or r.get("items"))
+                     if (r.get("type") in _MINABLE_TYPES or r.get("items"))
+                     and not cdb_model.is_placeholder(r.get("name")))
 
     # niveaux de bureau de minage : resource_id / item_id -> niveau requis (table miningBureau)
     mining_res, mining_item = {}, {}
