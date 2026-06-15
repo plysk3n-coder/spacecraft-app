@@ -169,14 +169,29 @@ else:
 admin = steam_auth.is_admin(st.session_state.get("steam_user"))
 banned_ids = {b.get("author_id") for b in fetch_bans_cached()} if shared else set()
 
-_labels = [T("tab_recipes"), T("tab_items"), T("tab_craftmap"), T("tab_universe"), T("tab_where"), T("tab_mymap")]
-if admin:
-    _labels.append(T("tab_admin"))
-_tabs = st.tabs(_labels)
-tab1, tab2, tab3, tab4, tab5, tab6 = _tabs[:6]
-tab_admin = _tabs[6] if admin else None
+# Objets partagés chargés UNE fois (caches) — dispo quel que soit l'onglet actif, car depuis le
+# rendu conditionnel par onglet (cf. nav ci-dessous) seul l'onglet sélectionné s'exécute : on ne
+# peut plus compter sur une variable définie dans un autre onglet (ex `w` jadis défini dans « Où trouver »).
+sheets = load_sheets()
+world = w = _world0
 
-with tab1:
+# Navigation par onglets PERSISTANTE (st.tabs perdait l'onglet actif à chaque rerun -> retour
+# à l'accueil dès qu'on cherchait/sélectionnait). On garde l'onglet dans un query param `tab`
+# (survit aux reruns ET au F5, comme rg/sy) + session_state via la clé du widget.
+_qp = st.query_params
+_keys = ["tab_recipes", "tab_items", "tab_craftmap", "tab_universe", "tab_where", "tab_mymap"]
+if admin:
+    _keys.append("tab_admin")
+if st.session_state.get("navtab") not in _keys:
+    st.session_state["navtab"] = _qp.get("tab") if _qp.get("tab") in _keys else _keys[0]
+_sel = st.segmented_control("nav", _keys, format_func=T, key="navtab", label_visibility="collapsed")
+_sel = _sel or _qp.get("tab") or _keys[0]
+if _sel not in _keys:
+    _sel = _keys[0]
+if _qp.get("tab") != _sel:
+    _qp["tab"] = _sel
+
+if _sel == "tab_recipes":
     c = st.columns([2, 1, 1, 1])
     q = c[0].text_input(T("search_recipe"))
     stations = [T("all_f")] + sorted([s for s in df["station"].unique() if s and s != "-"])
@@ -222,7 +237,7 @@ with tab1:
            .format({T("col_va"): "{:.2f}", T("col_vah"): "{:.2f}", T("col_power"): "{:.0f}"}, na_rep="—"))
     st.dataframe(sty, width="stretch", height=600, hide_index=True)
 
-with tab2:
+if _sel == "tab_items":
     qi = st.text_input(T("search_item"))
     di = pd.DataFrame([{T("col_itemname"): v["name"], T("col_price"): v["price"],
                         T("col_type"): v["type"], T("col_loot"): v["lootLevel"]} for v in items.values()])
@@ -233,7 +248,7 @@ with tab2:
     st.dataframe(di, width="stretch", height=600, hide_index=True,
                  column_config={T("col_price"): st.column_config.NumberColumn(format="%.2f")})
 
-with tab3:
+if _sel == "tab_craftmap":
     st.caption(T("craftmap_help"))
     sheets = load_sheets()
     prods = graph_data.craftable_products(sheets, items)
@@ -269,7 +284,7 @@ with tab3:
         sell = items.get(sel_prod, {}).get("price", 0) * qtymake
         c2.metric(T("total_cost"), f"{total:.2f}", delta=f"{sell - total:+.2f} VA")
 
-with tab4:
+if _sel == "tab_universe":
     st.caption(T("universe_help"))
     umode = st.radio(T("view"), ["v_table", "v_graph"], format_func=T, horizontal=True, key="umode")
     sheets = load_sheets(); world = load_world()
@@ -308,7 +323,7 @@ with tab4:
             st.caption(T("u_disc_legend"))
         components.html(graph_data.to_html(nodes, edges, height="640px", hierarchical=True, direction="UD"), height=660)
 
-with tab5:
+if _sel == "tab_where":
     st.caption(T("where_help"))
     w = load_world()
     mineable = sorted(w["item_sources"].keys(), key=lambda i: items.get(i, {}).get("name", i))
@@ -334,7 +349,7 @@ with tab5:
                                         T("col_reslevel"): w["sector_reslevel"].get(s), T("col_req"): _req(s)}
                                        for s in secs]), hide_index=True, width="stretch")
 
-with tab6:
+if _sel == "tab_mymap":
     if shared:
         st.success(T("mm_shared_on"))
         if map_err:
@@ -548,8 +563,8 @@ with tab6:
 
 
 # --- Onglet ADMIN (visible uniquement par l'admin) : contributeurs + bannissements ---
-if tab_admin is not None:
-    with tab_admin:
+if admin:
+    if _sel == "tab_admin":
         st.caption(T("adm_help"))
         try:
             allrows = fetch_shared()
