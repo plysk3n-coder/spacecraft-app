@@ -140,6 +140,13 @@ if steam_auth.is_admin(st.session_state.get("steam_user")):
 overrides_key = tuple(sorted(st.session_state.get("overrides", {}).items()))
 items, recipes = load(overrides_key, lang)
 df = pd.DataFrame(recipes)
+# temps de craft auto par produit (recette de BASE en priorité) pour le plan d'usine
+_product_time = {}
+for _r in recipes:
+    if _r.get("unlock") == "Permit":
+        _product_time.setdefault(_r["product_id"], (_r.get("t_auto") or 0, _r.get("out_qty") or 1, _r.get("station") or ""))
+for _r in recipes:  # fallback : produits sans recette de base
+    _product_time.setdefault(_r["product_id"], (_r.get("t_auto") or 0, _r.get("out_qty") or 1, _r.get("station") or ""))
 
 # --- données partagées entre onglets : gisements + carte de découvertes ---
 _world0 = load_world()
@@ -291,6 +298,21 @@ if _sel == "tab_craftmap":
         total = sum(r["cost"] for r in raw)
         sell = items.get(sel_prod, {}).get("price", 0) * qtymake
         c2.metric(T("total_cost"), f"{total:.2f}", delta=f"{sell - total:+.2f} VA")
+
+    # --- 🏭 Débits d'usine : machines nécessaires pour un débit cible ---
+    st.subheader(T("factory_title"))
+    st.caption(T("factory_help"))
+    target = st.number_input(T("factory_target"), min_value=1, value=60, step=10, key="fac_target")
+    fac = graph_data.factory_plan(sheets, items, _product_time, sel_prod, target_per_h=target, max_depth=depth)
+    dff = pd.DataFrame([{
+        T("col_comp"): (("　" * (r["depth"] - 1) + "└ ") if r["depth"] else "") + r["name"],
+        T("fac_c_rate"): r["rate"],
+        T("fac_c_machines"): r["machines"] if r["machines"] is not None else "—",
+        T("fac_c_mrate"): r["machine_rate"] if r["machine_rate"] is not None else "—",
+        T("col_station"): r["station"]} for r in fac])
+    st.dataframe(dff, hide_index=True, width="stretch", height=430)
+    _nmach = sum(r["machines"] for r in fac if r["machines"])
+    st.caption(T("factory_total").format(n=_nmach))
 
 if _sel == "tab_universe":
     st.caption(T("universe_help"))

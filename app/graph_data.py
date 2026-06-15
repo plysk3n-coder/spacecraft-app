@@ -124,6 +124,39 @@ def craft_tree_rows(sheets, items, product_id, qty=1.0, max_depth=4, max_rows=25
     return rows
 
 
+def factory_plan(sheets, items, product_time, product_id, target_per_h, max_depth=12, max_rows=250):
+    """Plan d'usine : pour produire `target_per_h` unités/heure du produit, combien d'unités/h de
+    chaque composant + combien de MACHINES par étape (tient compte des sorties multiples et du temps
+    de craft auto). product_time = {item_id: (t_auto_s, out_qty, station)}. -> lignes triées DFS."""
+    best = best_recipes(sheets, items)
+    nm = lambda i: items.get(i, {}).get("name", i)
+    import math
+    rows, seen = [], set()
+
+    def rec(i, rate, depth):
+        if len(rows) >= max_rows:
+            return
+        pt = product_time.get(i)
+        machines, station, mrate = None, "", 0.0
+        if pt and pt[0]:
+            t_auto, oq_t, station = pt
+            mrate = oq_t / t_auto * 3600.0  # unités/h par machine
+            machines = math.ceil(rate / mrate) if mrate else None
+        rows.append({"depth": depth, "name": nm(i), "rate": round(rate, 2),
+                     "machines": machines, "machine_rate": round(mrate, 1) if mrate else None,
+                     "station": station})
+        if depth >= max_depth or i in seen or i not in best:
+            return
+        seen.add(i)
+        ins, oq = best[i]
+        runs = rate / (oq or 1)
+        for ii, q in ins:
+            rec(ii, q * runs, depth + 1)
+
+    rec(product_id, float(target_per_h), 0)
+    return rows
+
+
 def raw_materials(sheets, items, product_id, qty=1.0, max_depth=14):
     """Rollup : matieres BRUTES totales (voie la moins chere) pour `qty` du produit."""
     best = best_recipes(sheets, items)
