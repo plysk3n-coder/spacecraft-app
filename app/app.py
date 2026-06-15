@@ -110,9 +110,23 @@ if steam_auth.is_admin(st.session_state.get("steam_user")):
         if extract_cdb.game_available():
             if st.button(T("reextract"), help=T("reextract_help")):
                 try:
-                    extract_cdb.extract_all(langs=("fr",))
+                    extract_cdb.extract_all(langs=("fr",))  # sauvegarde auto en .prev avant d'écraser
+                    _diff = extract_cdb.diff_cdb()
                     st.cache_data.clear()
                     st.success(T("reextracted"))
+                    if _diff:
+                        st.info(T("reextract_diff").format(
+                            ia=len(_diff["items_added"]), ir=len(_diff["items_removed"]),
+                            pc=len(_diff["price_changes"]),
+                            ca=len(_diff["craft_added"]), cr=len(_diff["craft_removed"])))
+                        if _diff["items_added"]:
+                            st.caption("➕ " + ", ".join(_diff["items_added"][:30]))
+                        if _diff["items_removed"]:
+                            st.caption("➖ " + ", ".join(_diff["items_removed"][:30]))
+                        if _diff["price_changes"]:
+                            st.dataframe(pd.DataFrame([{"id": i, "ancien": o, "nouveau": n}
+                                                       for i, o, n in _diff["price_changes"][:50]]),
+                                         hide_index=True, width="stretch")
                 except Exception as e:
                     st.error(f'{T("fail")} {e}')
 

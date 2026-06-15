@@ -59,6 +59,8 @@ UI = {
     "factory_energy": {"fr": "Énergie/h (total)", "en": "Energy/h (total)"},
     "factory_raw":  {"fr": "🧱 Matières premières à fournir (u/h)", "en": "🧱 Raw materials to supply (u/h)"},
     "col_minlvl":   {"fr": "Niv. minage", "en": "Mining lvl"},
+    "reextract_diff": {"fr": "📊 Patch : items +{ia}/−{ir} · recettes +{ca}/−{cr} · {pc} prix modifiés (sauvegarde .prev faite).",
+                       "en": "📊 Patch: items +{ia}/−{ir} · recipes +{ca}/−{cr} · {pc} price changes (.prev backup saved)."},
     "item_detail":  {"fr": "🔎 Fiche d'un item", "en": "🔎 Item details"},
     "item_pick":    {"fr": "Choisir un item", "en": "Pick an item"},
     "item_attrs":   {"fr": "Stats", "en": "Stats"},

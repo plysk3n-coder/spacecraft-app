@@ -133,9 +133,48 @@ def extract_lang(code="fr", pak_path=None):
     return path
 
 
+def _backup(path):
+    """Sauvegarde l'ancien fichier en <path>.prev AVANT de l'écraser (pour diff après patch).
+    Les .prev restent LOCAUX (non copiés par sync_deploy.ps1)."""
+    import shutil
+    if os.path.exists(path):
+        try:
+            shutil.copy2(path, path + ".prev")
+        except Exception:
+            pass
+
+
+def diff_cdb(prev=OUT + ".prev", new=OUT):
+    """Compare l'ancien cdb (.prev) au nouveau -> dict des changements (items ajoutés/retirés,
+    prix modifiés, recettes ajoutées/retirées). None si pas de .prev."""
+    import cdb_model
+    if not os.path.exists(prev):
+        return None
+    op, npw = cdb_model.load_cdb(prev), cdb_model.load_cdb(new)
+    oi = {l["id"]: l for l in cdb_model._lines(op, "item") if l.get("id")}
+    ni = {l["id"]: l for l in cdb_model._lines(npw, "item") if l.get("id")}
+    price_chg = []
+    for i in set(oi) & set(ni):
+        po, pn = oi[i].get("price") or 0, ni[i].get("price") or 0
+        if po != pn:
+            price_chg.append((i, po, pn))
+    oc = {l.get("id") for l in cdb_model._lines(op, "craft")}
+    nc = {l.get("id") for l in cdb_model._lines(npw, "craft")}
+    return {
+        "items_old": len(oi), "items_new": len(ni),
+        "items_added": sorted(set(ni) - set(oi)), "items_removed": sorted(set(oi) - set(ni)),
+        "price_changes": sorted(price_chg, key=lambda x: -abs((x[2] or 0) - (x[1] or 0))),
+        "craft_old": len(oc), "craft_new": len(nc),
+        "craft_added": sorted(nc - oc), "craft_removed": sorted(oc - nc),
+    }
+
+
 def extract_all(langs=("fr",)):
+    """Ré-extrait data.cdb + langues. Sauvegarde d'abord les .prev (backup auto avant patch)."""
+    _backup(OUT)
     extract()
     for code in langs:
+        _backup(os.path.join(LANG_DIR, f"export_{code}.xml"))
         extract_lang(code)
 
 
