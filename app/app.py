@@ -10,6 +10,7 @@ import cdb_model
 import extract_cdb
 import i18n
 import graph_data
+import build_data
 import world_data
 import discoveries
 import cloud_store
@@ -179,7 +180,8 @@ world = w = _world0
 # à l'accueil dès qu'on cherchait/sélectionnait). On garde l'onglet dans un query param `tab`
 # (survit aux reruns ET au F5, comme rg/sy) + session_state via la clé du widget.
 _qp = st.query_params
-_keys = ["tab_recipes", "tab_items", "tab_craftmap", "tab_universe", "tab_where", "tab_mymap"]
+_keys = ["tab_recipes", "tab_items", "tab_craftmap", "tab_universe", "tab_where", "tab_mymap",
+         "tab_ship", "tab_base"]
 if admin:
     _keys.append("tab_admin")
 if st.session_state.get("navtab") not in _keys:
@@ -561,6 +563,99 @@ if _sel == "tab_mymap":
             except Exception as e:
                 st.error(f'{T("fail")} {e}')
 
+
+# --- Onglet SHIP BUILDER : assembler un vaisseau, bilans depuis les stats du cdb ---
+if _sel == "tab_ship":
+    st.caption(T("ship_help"))
+    _sgroups = build_data.grouped(sheets, items, build_data.SHIP_CATS)
+    _sg = {g["key"]: g for g in _sgroups}
+    _cg = _sg.get("sb_cockpit")
+    if not _cg:
+        st.info(T("sb_empty"))
+    else:
+        _picks = []
+        _co = _cg["list"]
+        _ci = st.selectbox(T("sb_cockpit"), range(len(_co)),
+                           format_func=lambda i: f"{_co[i]['name']}  ·  {_co[i]['price']:.0f}", key="ship_cockpit")
+        _picks.append(_co[_ci])
+        _others = [g for g in _sgroups if g["key"] != "sb_cockpit"]
+        _oc = st.columns(3)
+        for _n, _g in enumerate(_others):
+            with _oc[_n % 3]:
+                _opts = _g["list"]
+                for _s in st.multiselect(T(_g["key"]), range(len(_opts)),
+                                         format_func=lambda i, o=_opts: f"{o[i]['name']}  ·  {o[i]['price']:.0f}",
+                                         key="ship_" + _g["cat"]):
+                    _picks.append(_opts[_s])
+        # quantités par module choisi (table éditable)
+        _dfq = pd.DataFrame([{T("sb_comp"): c["name"], T("sb_qty"): 1} for c in _picks])
+        _ed = st.data_editor(_dfq, hide_index=True, width="stretch", disabled=[T("sb_comp")], key="ship_qty",
+                             column_config={T("sb_qty"): st.column_config.NumberColumn(min_value=0, step=1)})
+        _chosen = []
+        for _k, _c in enumerate(_picks):
+            _q = int(_ed[T("sb_qty")].iloc[_k]) if _k < len(_ed) else 1
+            _chosen += [_c] * max(_q, 0)
+        _tot = build_data.sum_attrs(_chosen)
+        _sup, _req = _tot.get("SystemSupport", 0), _tot.get("SystemRequirement", 0)
+        _prod, _use = _tot.get("PowerProduction", 0), _tot.get("EngineConsumption", 0)
+        _force, _weight = _tot.get("EngineForce", 0), _tot.get("ShipWeight", 0)
+        _cost = sum(c["price"] for c in _chosen)
+        _m = st.columns(6)
+        _m[0].metric(T("sb_syspoints"), f"{_sup - _req:.0f}", delta=f"{_sup:.0f} / {_req:.0f}", delta_color="off")
+        _m[1].metric(T("sb_power"), f"{_prod - _use:.0f}", delta=f"{_prod:.0f} / {_use:.0f}", delta_color="off")
+        _m[2].metric(T("sb_weightforce"), f"{_force - _weight:.0f}", delta=f"{_force:.0f} / {_weight:.0f}", delta_color="off")
+        _m[3].metric(T("sb_cargo_t"), f"{_tot.get('StorageUnits', 0):.0f}")
+        _m[4].metric(T("sb_hull"), f"{_tot.get('Hull', 0):.0f}")
+        _m[5].metric(T("sb_cost"), f"{_cost:.0f}")
+        if _sup - _req < 0:
+            st.warning(T("sb_bad_sys"))
+        elif _weight > 0 and _force < _weight:
+            st.warning(T("sb_bad_force"))
+        elif _prod - _use < 0:
+            st.warning(T("sb_bad_power"))
+        else:
+            st.success(T("sb_ok"))
+        _am = build_data.attr_meta(sheets)
+        _rows = [{T("sb_stat"): _am.get(k, (k, ""))[0] + (f" [{_am.get(k, ('', ''))[1]}]" if _am.get(k, ("", ""))[1] else ""),
+                  T("sb_total"): round(v, 2)} for k, v in sorted(_tot.items()) if k in build_data.SHIP_KEYS]
+        if _rows:
+            st.dataframe(pd.DataFrame(_rows), hide_index=True, width="stretch")
+
+# --- Onglet BASE BUILDER : planifier une base, bilan énergie/coût ---
+if _sel == "tab_base":
+    st.caption(T("base_help"))
+    _bgroups = build_data.grouped(sheets, items, build_data.BASE_CATS)
+    _picks = []
+    _bc = st.columns(3)
+    for _n, _g in enumerate(_bgroups):
+        with _bc[_n % 3]:
+            _opts = _g["list"]
+            for _s in st.multiselect(T(_g["key"]), range(len(_opts)),
+                                     format_func=lambda i, o=_opts: f"{o[i]['name']}  ·  {o[i]['price']:.0f}",
+                                     key="base_" + _g["cat"]):
+                _picks.append(_opts[_s])
+    if not _picks:
+        st.info(T("base_help"))
+    else:
+        _dfq = pd.DataFrame([{T("sb_comp"): c["name"], T("sb_qty"): 1} for c in _picks])
+        _ed = st.data_editor(_dfq, hide_index=True, width="stretch", disabled=[T("sb_comp")], key="base_qty",
+                             column_config={T("sb_qty"): st.column_config.NumberColumn(min_value=0, step=1)})
+        _chosen = []
+        for _k, _c in enumerate(_picks):
+            _q = int(_ed[T("sb_qty")].iloc[_k]) if _k < len(_ed) else 1
+            _chosen += [_c] * max(_q, 0)
+        _tot = build_data.sum_attrs(_chosen)
+        _cost = sum(c["price"] for c in _chosen)
+        _m = st.columns(4)
+        _m[0].metric(T("bb_energy"), f"{_tot.get('EnergyOffer', 0):.0f}")
+        _m[1].metric(T("bb_footprint"), f"{_tot.get('BuildPointsCost', 0):.0f}")
+        _m[2].metric(T("bb_storage_t"), f"{_tot.get('SolidStorage', 0):.0f}")
+        _m[3].metric(T("bb_buildcost"), f"{_cost:.0f}")
+        _am = build_data.attr_meta(sheets)
+        _rows = [{T("sb_stat"): _am.get(k, (k, ""))[0] + (f" [{_am.get(k, ('', ''))[1]}]" if _am.get(k, ("", ""))[1] else ""),
+                  T("sb_total"): round(v, 2)} for k, v in sorted(_tot.items()) if k in build_data.BASE_KEYS]
+        if _rows:
+            st.dataframe(pd.DataFrame(_rows), hide_index=True, width="stretch")
 
 # --- Onglet ADMIN (visible uniquement par l'admin) : contributeurs + bannissements ---
 if admin:
