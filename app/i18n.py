@@ -188,6 +188,8 @@ UI = {
     "mm_planet":    {"fr": "Planète (existante)", "en": "Planet (existing)"},
     "mm_planet_new":{"fr": "…ou nouvelle planète", "en": "…or new planet"},
     "mm_resources": {"fr": "Gisements trouvés sur cette planète", "en": "Deposits found on this planet"},
+    "mm_pois":      {"fr": "🏛️ Bases / POI sur cette planète", "en": "🏛️ Bases / POIs on this planet"},
+    "mm_col_poi":   {"fr": "Bases / POI", "en": "Bases / POIs"},
     "mm_addbtn":    {"fr": "💾 Enregistrer", "en": "💾 Save"},
     "mm_added":     {"fr": "Découverte enregistrée.", "en": "Discovery saved."},
     "mm_need":      {"fr": "Renseigne au moins une région, un système et une planète.", "en": "Provide at least a region, a system and a planet."},

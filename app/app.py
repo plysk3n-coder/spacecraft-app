@@ -187,6 +187,22 @@ dep_ids = sorted(_by_nm.values(), key=dep_name)
 # ce que produit un gisement (noms d'items traduits)
 dep_yield = lambda d: [items.get(i, {}).get("name", i) for i in deposits.get(d, {}).get("items", [])]
 
+# --- POI / bases (table `instance`) : stockes en base avec le prefixe "POI:" ---
+_poitr = sheet_translations(lang, "instance")
+is_poi = lambda x: isinstance(x, str) and x.startswith("POI:")
+poiname = lambda x: _poitr.get(x[4:], x[4:]) if is_poi(x) else (_poitr.get(x, x))
+# options du multiselect POI, dedoublonnees par nom traduit
+_poi_by_nm = {}
+for _pid in _world0.get("pois", {}):
+    _nm = _poitr.get(_pid, _pid)
+    if cdb_model.is_placeholder(_nm):
+        continue
+    if _nm not in _poi_by_nm or len(_pid) < len(_poi_by_nm[_nm]):
+        _poi_by_nm[_nm] = _pid
+poi_ids = ["POI:" + _v for _v in sorted(_poi_by_nm.values(), key=lambda i: _poitr.get(i, i))]
+# nom d'affichage unifie d'une entree stockee (ressource OU poi prefixe "POI:")
+itemname = lambda x: ("🏛️ " + poiname(x)) if is_poi(x) else resname(x)
+
 shared = cloud_store.available()
 map_err = None
 if shared:
@@ -406,7 +422,7 @@ if _sel == "tab_universe":
                 for pl, pld in syd.get("planets", {}).items():
                     pid = f"dpl:{rg}/{sy}/{pl}"
                     deps = pld.get("resources", [])
-                    ttl = pl + ((" — " + ", ".join(dep_name(d) for d in deps)) if deps else "")
+                    ttl = pl + ((" — " + ", ".join(itemname(d) for d in deps)) if deps else "")
                     nodes[pid] = {"label": pl, "title": ttl, "kind": "disc_planet"}
                     edges.append((sid, pid, ""))
                     n_disc += 1
@@ -536,16 +552,18 @@ if _sel == "tab_mymap":
         _qp["sy"] = system
 
     res_sel = st.multiselect(T("mm_resources"), dep_ids, format_func=dep_name, key="mm_res")
+    poi_sel = st.multiselect(T("mm_pois"), poi_ids, format_func=poiname, key="mm_poi")
+    _all_sel = res_sel + poi_sel
     if st.button(T("mm_addbtn"), type="primary"):
         if shared and not author:
             st.warning(T("mm_need_login") if steam_auth.configured() else T("mm_steam_required"))
         elif region and system and planet:
             try:
                 if shared:
-                    cloud_store.add(region, system, planet, res_sel, author, author_id=author_id)
+                    cloud_store.add(region, system, planet, _all_sel, author, author_id=author_id)
                     fetch_shared.clear()
                 else:
-                    discoveries.add_resources(data, region, system, planet, res_sel)
+                    discoveries.add_resources(data, region, system, planet, _all_sel)
                     discoveries.save(data)
                 st.success(T("mm_added"))
                 st.rerun()
@@ -569,16 +587,17 @@ if _sel == "tab_mymap":
         dfm = pd.DataFrame([{
             T("col_place"): ("　" * r["depth"] + ("└ " if r["depth"] else "")) + r["name"],
             T("mm_col_kind"): T("mm_k_" + r["kind"]),
-            T("mm_col_res"): " · ".join(_dep_disp(x) for x in r["resources"]) if r["kind"] == "planet" else "",
+            T("mm_col_res"): " · ".join(_dep_disp(x) for x in r["resources"] if not is_poi(x)) if r["kind"] == "planet" else "",
+            T("mm_col_poi"): " · ".join(poiname(x) for x in r["resources"] if is_poi(x)) if r["kind"] == "planet" else "",
         } for r in rws])
         st.dataframe(dfm, hide_index=True, width="stretch", height=380)
 
         # --- Recherche "où ai-je trouvé X" ---
         st.subheader(T("mm_search"))
-        found = sorted(discoveries.all_resource_ids(data), key=resname)
+        found = sorted(discoveries.all_resource_ids(data), key=itemname)
         if found:
             q = st.selectbox(T("mm_search_res"), ["—"] + found,
-                             format_func=lambda i: "—" if i == "—" else resname(i), key="mm_qres")
+                             format_func=lambda i: "—" if i == "—" else itemname(i), key="mm_qres")
             if q != "—":
                 hits = discoveries.find_resource(data, q)
                 st.dataframe(pd.DataFrame([{T("mm_region2"): rg, T("mm_system2"): sy, T("mm_planet2"): pl}

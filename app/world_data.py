@@ -116,9 +116,21 @@ def build_world(sheets):
                 if k and k not in kids:
                     kids.append(k)
 
+    # POI / bases (table `instance`) : id canonique -> nom EN, dedupe par nom EN, hors dev/placeholder.
+    # Stockes en base avec le prefixe "POI:" (cote app) pour les distinguer des ressources.
+    pois = {}
+    _seen_poi = {}
+    for l in sorted(cdb_model._lines(sheets, "instance"), key=lambda x: len(x.get("id", ""))):
+        iid, nm = l.get("id", ""), (l.get("name") or l.get("id", ""))
+        if iid.startswith(("Test", "Dark")) or cdb_model.is_placeholder(nm):
+            continue
+        if nm not in _seen_poi:
+            _seen_poi[nm] = iid
+            pois[iid] = nm
+
     return {"sector_items": sector_items, "sector_res": sector_res,
             "item_sectors": item_sectors, "item_sources": item_sources,
-            "deposits": deposits, "minable": minable,
+            "deposits": deposits, "minable": minable, "pois": pois,
             "mining_res": mining_res, "mining_item": mining_item,
             "named_universe": named_universe, "system_name2id": system_name2id,
             "sector_name": {sid: s.get("name", sid) for sid, s in sectors.items()},
