@@ -226,7 +226,7 @@ world = w = _world0
 # à l'accueil dès qu'on cherchait/sélectionnait). On garde l'onglet dans un query param `tab`
 # (survit aux reruns ET au F5, comme rg/sy) + session_state via la clé du widget.
 _qp = st.query_params
-_keys = ["tab_recipes", "tab_items", "tab_craftmap", "tab_universe", "tab_where", "tab_mymap",
+_keys = ["tab_recipes", "tab_items", "tab_craftmap", "tab_universe", "tab_where", "tab_poi", "tab_mymap",
          "tab_ship", "tab_base", "tab_permits", "tab_contracts"]
 if admin:
     _keys.append("tab_admin")
@@ -474,6 +474,32 @@ if _sel == "tab_where":
             st.dataframe(pd.DataFrame(found), hide_index=True, width="stretch")
         else:
             st.info(T("where_found_none"))
+
+if _sel == "tab_poi":
+    st.caption(T("poi_help"))
+    # comptage des decouvertes par POI (carte communautaire)
+    _pcount = {}
+    for rgd in map_data.get("regions", {}).values():
+        for syd in rgd.get("systems", {}).values():
+            for pld in syd.get("planets", {}).values():
+                for x in pld.get("resources", []):
+                    if is_poi(x):
+                        _pcount[x] = _pcount.get(x, 0) + 1
+    # tableau de tous les POI connus + nb de decouvertes
+    _prows = [{T("poi_col_name"): poiname(p), T("poi_col_count"): _pcount.get(p, 0)} for p in poi_ids]
+    _prows.sort(key=lambda d: (-d[T("poi_col_count")], d[T("poi_col_name")]))
+    st.dataframe(pd.DataFrame(_prows), hide_index=True, width="stretch")
+    # localiser un POI precis
+    psel = st.selectbox(T("poi_select"), ["—"] + poi_ids,
+                        format_func=lambda i: "—" if i == "—" else poiname(i), key="poi_sel_loc")
+    if psel != "—":
+        st.subheader(T("poi_found"))
+        hits = discoveries.find_resource(map_data, psel)
+        if hits:
+            st.dataframe(pd.DataFrame([{T("col_sector"): rg, T("col_system"): sy, T("col_planet"): pl}
+                                       for rg, sy, pl in sorted(hits)]), hide_index=True, width="stretch")
+        else:
+            st.info(T("poi_found_none"))
 
 if _sel == "tab_mymap":
     if shared:
