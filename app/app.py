@@ -444,6 +444,21 @@ if _sel == "tab_where":
                                         T("col_reslevel"): w["sector_reslevel"].get(s), T("col_req"): _req(s)}
                                        for s in secs]), hide_index=True, width="stretch")
 
+        # Croisement avec les decouvertes (carte communautaire) : un item provient de
+        # gisements (res ids) ; on liste les systemes/planetes ou ces gisements ont ete trouves.
+        res_names = {s["res"]: s["name"] for s in srcs if s.get("res")}
+        found = []
+        for rid, dname in res_names.items():
+            for rg, sy, pl in discoveries.find_resource(map_data, rid):
+                found.append({T("col_sector"): rg, T("col_system"): sy,
+                              T("col_planet"): pl, T("col_deposit"): dname})
+        st.subheader(T("where_found"))
+        if found:
+            found.sort(key=lambda d: (d[T("col_sector")], d[T("col_system")], d[T("col_planet")]))
+            st.dataframe(pd.DataFrame(found), hide_index=True, width="stretch")
+        else:
+            st.info(T("where_found_none"))
+
 if _sel == "tab_mymap":
     if shared:
         st.success(T("mm_shared_on"))
