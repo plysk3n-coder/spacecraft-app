@@ -140,7 +140,7 @@ def craft_tree_rows(sheets, items, product_id, qty=1.0, max_depth=4, max_rows=25
         if len(rows) >= max_rows:
             return
         craftable = i in best
-        rows.append({"depth": depth, "name": nm(i), "qty": fmt(need), "price": pr(i),
+        rows.append({"depth": depth, "id": i, "name": nm(i), "qty": fmt(need), "price": pr(i),
                      "station": stations.get(i, "") if craftable else "", "craftable": craftable})
         if depth >= max_depth or i in seen or not craftable:
             return
@@ -239,6 +239,21 @@ def item_recipes(sheets, items, item_id):
             used_in.append({"product": nm(outs[0].get("item")) if outs else c.get("id"),
                             "in": fmt(ins), "where": c.get("where", "")})
     return produced_by, used_in
+
+
+def all_prod_recipes(sheets):
+    """{item_id: [(inputs[(item,qty)], unlock, recipe_id)]} = toutes les recettes de PRODUCTION
+    d'un item (base + blueprints + étude). Exclut le recyclage (where) et le démantèlement (unlock 5)
+    qui ne sont pas des façons de 'fabriquer' l'item. Sert à signaler les recettes alternatives."""
+    idx = {}
+    for c in cdb_model._lines(sheets, "craft"):
+        unlock = c.get("unlockType", 0)
+        if c.get("where", "") in _EXCLUDE_WHERE or unlock == 5:
+            continue
+        ins = [(i.get("item"), int(i.get("qty", 1) or 1)) for i in (c.get("inputs") or [])]
+        for o in (c.get("outputs") or []):
+            idx.setdefault(o.get("item"), []).append((ins, unlock, c.get("id")))
+    return idx
 
 
 def craftable_products(sheets, items):

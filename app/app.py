@@ -201,6 +201,10 @@ _RESTYPE_TR = {
     "BiologicalRoot": {"fr": "Racine biologique", "en": "Biological root"},
 }
 restype_label = lambda t: _RESTYPE_TR.get(t, {}).get(lang, t)
+# type de déblocage d'une recette (unlockType du cdb) -> libellé traduit
+_UNLOCK_TR = {0: {"fr": "Base", "en": "Base"}, 1: {"fr": "Blueprint unique", "en": "Unique blueprint"},
+              2: {"fr": "Blueprint aléatoire", "en": "Random blueprint"}, 4: {"fr": "Étude", "en": "Study"}}
+unlock_label = lambda u: _UNLOCK_TR.get(u, {}).get(lang, str(u))
 # options du multiselect = toutes les ressources minables (pas seulement les 70 avec items),
 # dedoublonnees par nom traduit (on garde l'id avec items, sinon le plus court -> evite les variantes _Big)
 _rec_ids = set(deposits) | set(_world0.get("minable", []))
@@ -458,14 +462,37 @@ if _sel == "tab_craftmap":
     qtymake = cc[2].number_input(T("make_qty"), min_value=1, value=1, step=1)
     cmode = cc[3].radio(T("view"), ["v_table", "v_graph"], format_func=T, key="cmode")
 
+    _allrec = graph_data.all_prod_recipes(sheets)
+    _cnm = lambda i: items.get(i, {}).get("name", i)
     if cmode == "v_table":
         rows = graph_data.craft_tree_rows(sheets, items, sel_prod, qty=qtymake, max_depth=depth)
+        def _comp(r):
+            base = (("　" * (r["depth"] - 1) + "└ ") if r["depth"] else "") + r["name"]
+            return base + (" 🔀" if len(_allrec.get(r["id"], [])) > 1 else "")  # 🔀 = recettes alternatives
         dft = pd.DataFrame([{
-            T("col_comp"): (("　" * (r["depth"] - 1) + "└ ") if r["depth"] else "") + r["name"],
+            T("col_comp"): _comp(r),
             T("col_qty2"): r["qty"], T("col_price"): r["price"], T("col_station"): r["station"]}
             for r in rows])
         st.dataframe(dft, hide_index=True, width="stretch", height=430,
                      column_config={T("col_price"): st.column_config.NumberColumn(format="%.2f")})
+        # --- recettes alternatives (blueprints) des items de la chaîne ---
+        _best = graph_data.best_recipes(sheets, items)
+        _multi, _seen = [], set()
+        for r in rows:
+            iid = r.get("id")
+            if iid and iid not in _seen and len(_allrec.get(iid, [])) > 1:
+                _seen.add(iid); _multi.append(iid)
+        if _multi:
+            with st.expander(T("alt_title").format(n=len(_multi))):
+                st.caption(T("alt_help"))
+                for iid in _multi:
+                    recs = _allrec[iid]
+                    ch = _best.get(iid)
+                    st.markdown(f"**{_cnm(iid)}** — {len(recs)} {T('alt_word')}")
+                    for ins, unlock, rid in recs:
+                        mark = "✅" if (ch and list(ins) == list(ch[0])) else "•"
+                        ins_str = " + ".join(f"{q}× {_cnm(i)}" for i, q in ins) or "—"
+                        st.caption(f"{mark} _{unlock_label(unlock)}_ — {ins_str}")
     else:
         nodes, edges = graph_data.craft_chain(sheets, items, sel_prod, max_depth=depth)
         components.html(graph_data.to_html(nodes, edges, height="560px", hierarchical=True, direction="DU"), height=580)
