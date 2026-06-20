@@ -226,7 +226,9 @@ world = w = _world0
 # à l'accueil dès qu'on cherchait/sélectionnait). On garde l'onglet dans un query param `tab`
 # (survit aux reruns ET au F5, comme rg/sy) + session_state via la clé du widget.
 _qp = st.query_params
-_keys = ["tab_recipes", "tab_items", "tab_craftmap", "tab_universe", "tab_where", "tab_poi", "tab_mymap",
+# Ordre des menus (exploration/carte d'abord, puis craft/économie, puis builders/progression).
+_keys = ["tab_where", "tab_deposits", "tab_mymap", "tab_poi", "tab_universe",
+         "tab_recipes", "tab_items", "tab_craftmap",
          "tab_ship", "tab_base", "tab_permits", "tab_contracts"]
 if admin:
     _keys.append("tab_admin")
@@ -479,6 +481,41 @@ if _sel == "tab_where":
             st.dataframe(pd.DataFrame(found), hide_index=True, width="stretch")
         else:
             st.info(T("where_found_none"))
+
+if _sel == "tab_deposits":
+    st.caption(T("dep_help"))
+    # tous les gisements presents dans la carte communautaire (hors POI), tries par nom traduit
+    _all_ids = sorted((x for x in discoveries.all_resource_ids(map_data) if not is_poi(x)), key=resname)
+    if not _all_ids:
+        st.info(T("dep_empty"))
+    else:
+        _lab = {resname(x): x for x in _all_ids}
+        c1, c2 = st.columns([3, 2])
+        with c1:
+            _sel_names = st.multiselect(T("dep_select"), sorted(_lab.keys()), key="dep_sel")
+        with c2:
+            _secf = st.multiselect(T("dep_sector_filter"), sorted(map_data["regions"].keys()), key="dep_secf")
+        if _sel_names:
+            _abund = discoveries.abundance_map(fetch_shared()) if shared else {}
+            _rows = []
+            for nm in _sel_names:
+                rid = _lab[nm]
+                for rg, sy, pl in discoveries.find_resource(map_data, rid):
+                    if _secf and rg not in _secf:
+                        continue
+                    a = _abund.get((rg, sy, pl, rid), {})
+                    _rows.append({T("col_deposit"): nm, T("col_sector"): rg, T("col_system"): sy,
+                                  T("col_planet"): pl, T("col_count"): a.get("count"),
+                                  T("col_density"): a.get("density")})
+            if _rows:
+                _rows.sort(key=lambda d: (-(d[T("col_count")] or 0), d[T("col_sector")],
+                                          d[T("col_system")], d[T("col_planet")]))
+                st.caption(T("dep_count").format(n=len(_rows)))
+                st.dataframe(pd.DataFrame(_rows), hide_index=True, width="stretch", height=560)
+            else:
+                st.info(T("dep_none"))
+        else:
+            st.info(T("dep_pick"))
 
 if _sel == "tab_poi":
     st.caption(T("poi_help"))
