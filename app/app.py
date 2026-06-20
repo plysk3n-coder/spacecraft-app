@@ -272,7 +272,9 @@ if _sel == "tab_recipes":
     d = df.copy()
     if q:
         ql = q.lower()
-        d = d[d["product"].str.lower().str.contains(ql) | d["inputs_str"].str.lower().str.contains(ql)]
+        # recherche aussi dans les SOUS-PRODUITS (recettes multi-output : ex "Malachite" via la recette "Azurite")
+        d = d[d["product"].str.lower().str.contains(ql) | d["inputs_str"].str.lower().str.contains(ql)
+              | d["outputs_str"].str.lower().str.contains(ql)]
     if fstat != T("all_f"):
         d = d[d["station"] == fstat]
     if funlock != T("all_m"):
