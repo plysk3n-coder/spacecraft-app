@@ -249,11 +249,19 @@ def craftable_products(sheets, items):
     return sorted(out, key=lambda i: items.get(i, {}).get("name", i))
 
 
-def universe_tree_rows(sheets, world=None, items=None):
-    """Arborescence indentee Secteur -> Systeme -> Planete/Station/Instance."""
+def universe_tree_rows(sheets, world=None, items=None, tr=None):
+    """Arborescence indentee Secteur -> Systeme -> Planete/Station/Instance.
+    `tr` (optionnel) = i18n : {kinds:{sector/system/planet/station/instance}, insname:fn(id),
+    obname:fn(id), res_word:str, gen:str-template} -> tout s'affiche dans la langue choisie."""
+    tr = tr or {}
+    K = tr.get("kinds") or {"sector": "Secteur", "system": "Système", "planet": "Planète",
+                            "station": "Station", "instance": "Instance"}
+    insname = tr.get("insname") or (lambda i: i)
+    obname = tr.get("obname") or (lambda o: o)
+    res_word = tr.get("res_word", "ressources")
+    gen_tmpl = tr.get("gen", "~{n} systèmes générés")
     sysn = {l["id"]: l.get("name", l["id"]) for l in cdb_model._lines(sheets, "system")}
     pln = {l["id"]: l.get("name", l["id"]) for l in cdb_model._lines(sheets, "planet")}
-    insn = {l["id"]: l.get("name", l["id"]) for l in cdb_model._lines(sheets, "instance")}
     itname = lambda i: (items or {}).get(i, {}).get("name", i)
     rows = []
     for s in cdb_model._lines(sheets, "sector"):
@@ -262,19 +270,19 @@ def universe_tree_rows(sheets, world=None, items=None):
         if world:
             names = sorted(itname(i) for i in world["sector_items"].get(sid, set()))
             if names:
-                res = f"{len(names)} ressources : " + ", ".join(names[:12]) + (" …" if len(names) > 12 else "")
+                res = f"{len(names)} {res_word} : " + ", ".join(names[:12]) + (" …" if len(names) > 12 else "")
         ngen = (s.get("generation") or {}).get("maxSystem")
-        extra = res or (f"~{ngen} systèmes générés" if ngen and not s.get("content") else "")
-        rows.append({"depth": 0, "kind": "Secteur", "name": s.get("name", sid), "extra": extra})
+        extra = res or (gen_tmpl.format(n=ngen) if ngen and not s.get("content") else "")
+        rows.append({"depth": 0, "kind": K["sector"], "name": s.get("name", sid), "extra": extra})
         sys_children, direct = {}, []
         for c in (s.get("content") or []):
             sy, pl, ob, ins = c.get("system"), c.get("planet"), c.get("object"), c.get("instance")
             bucket = sys_children.setdefault(sy, []) if sy else direct
-            if pl: bucket.append(("Planète", pln.get(pl, pl)))
-            if ob: bucket.append(("Station", ob))
-            if ins: bucket.append(("Instance", insn.get(ins, ins)))
+            if pl: bucket.append((K["planet"], pln.get(pl, pl)))
+            if ob: bucket.append((K["station"], obname(ob)))
+            if ins: bucket.append((K["instance"], insname(ins)))
         for sy, kids in sys_children.items():
-            rows.append({"depth": 1, "kind": "Système", "name": sysn.get(sy, sy), "extra": ""})
+            rows.append({"depth": 1, "kind": K["system"], "name": sysn.get(sy, sy), "extra": ""})
             for kind, name in kids:
                 rows.append({"depth": 2, "kind": kind, "name": name, "extra": ""})
         for kind, name in direct:
@@ -282,10 +290,12 @@ def universe_tree_rows(sheets, world=None, items=None):
     return rows
 
 
-def universe_graph(sheets, world=None, items=None, res_label="Ressources"):
+def universe_graph(sheets, world=None, items=None, res_label="Ressources", tr=None):
+    tr = tr or {}
+    insname = tr.get("insname") or (lambda i: i)
+    obname = tr.get("obname") or (lambda o: o)
     sysn = {l["id"]: l.get("name", l["id"]) for l in cdb_model._lines(sheets, "system")}
     pln = {l["id"]: l.get("name", l["id"]) for l in cdb_model._lines(sheets, "planet")}
-    insn = {l["id"]: l.get("name", l["id"]) for l in cdb_model._lines(sheets, "instance")}
     itname = lambda i: (items or {}).get(i, {}).get("name", i)
     nodes, edges, eset = {}, [], set()
 
@@ -317,9 +327,9 @@ def universe_graph(sheets, world=None, items=None, res_label="Ressources"):
             if pl:
                 add(pl, pln.get(pl, pl), "planet"); edge(parent, pl)
             if ob:
-                add(ob, ob, "object"); edge(parent, ob)
+                add(ob, obname(ob), "object"); edge(parent, ob)
             if ins:
-                add(ins, insn.get(ins, ins), "instance"); edge(parent, ins)
+                add(ins, insname(ins), "instance"); edge(parent, ins)
     return nodes, edges
 
 

@@ -515,14 +515,19 @@ if _sel == "tab_universe":
     st.caption(T("universe_help"))
     umode = st.radio(T("view"), ["v_table", "v_graph"], format_func=T, horizontal=True, key="umode")
     sheets = load_sheets(); world = load_world()
+    # i18n pour l'arbre/graphe Univers : libellés de niveau + résolveurs de noms (POI, stations) traduits
+    _utr = {"kinds": {"sector": T("u_k_sector"), "system": T("u_k_system"), "planet": T("u_k_planet"),
+                      "station": T("u_k_station"), "instance": T("u_k_instance")},
+            "insname": lambda i: _poiname0(i), "obname": lambda o: market_data.STATION_NAMES.get(o, o),
+            "res_word": T("u_resources"), "gen": T("u_gen")}
     if umode == "v_table":
-        urows = graph_data.universe_tree_rows(sheets, world=world, items=items)
+        urows = graph_data.universe_tree_rows(sheets, world=world, items=items, tr=_utr)
         dfu = pd.DataFrame([{
             T("col_place"): ("　" * r["depth"] + ("└ " if r["depth"] else "")) + r["name"],
             T("col_type"): r["kind"], T("col_detail"): r["extra"]} for r in urows])
         st.dataframe(dfu, hide_index=True, width="stretch", height=600)
     else:
-        nodes, edges = graph_data.universe_graph(sheets, world=world, items=items, res_label=T("u_resources"))
+        nodes, edges = graph_data.universe_graph(sheets, world=world, items=items, res_label=T("u_resources"), tr=_utr)
         # superpose les découvertes communautaires (systèmes/planètes ajoutés par les joueurs)
         name2sec = {nm: sid for sid, nm in world["sector_name"].items()}
         sys_name2id = world.get("system_name2id", {})
