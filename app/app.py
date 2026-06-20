@@ -186,9 +186,12 @@ _index_pt(False)  # fallback : produits sans recette de base
 _world0 = load_world()
 deposits = _world0.get("deposits", {})
 _rtr = res_translations(lang)
-dep_name = lambda d: _rtr.get(d) or deposits.get(d, {}).get("name", d)
-# nom d'affichage : ressource traduite (n'importe quel id de la table resource) ; sinon item (compat) ; sinon id brut
-resname = lambda x: _rtr.get(x) or items.get(x, {}).get("name", x)
+# nom anglais de base (champ `name` du cdb) : sert de repli quand la trad de la langue manque
+# (cas EN : nos fichiers i18n n'ont pas les noms de ressources -> on prend l'anglais du jeu, pas l'id brut)
+_res_name = {l["id"]: l.get("name") for l in cdb_model._lines(load_sheets(), "resource")}
+dep_name = lambda d: _rtr.get(d) or _res_name.get(d) or deposits.get(d, {}).get("name", d)
+# nom d'affichage : ressource traduite (langue) ; sinon nom anglais du cdb ; sinon item (compat) ; sinon id brut
+resname = lambda x: _rtr.get(x) or _res_name.get(x) or items.get(x, {}).get("name", x)
 # options du multiselect = toutes les ressources minables (pas seulement les 70 avec items),
 # dedoublonnees par nom traduit (on garde l'id avec items, sinon le plus court -> evite les variantes _Big)
 _rec_ids = set(deposits) | set(_world0.get("minable", []))
@@ -208,8 +211,11 @@ dep_yield = lambda d: [items.get(i, {}).get("name", i) for i in deposits.get(d, 
 
 # --- POI / bases (table `instance`) : stockes en base avec le prefixe "POI:" ---
 _poitr = sheet_translations(lang, "instance")
+_poi_name = {l["id"]: l.get("name") for l in cdb_model._lines(load_sheets(), "instance")}
 is_poi = lambda x: isinstance(x, str) and x.startswith("POI:")
-poiname = lambda x: _poitr.get(x[4:], x[4:]) if is_poi(x) else (_poitr.get(x, x))
+# POI traduit (langue) ; sinon nom anglais du cdb ; sinon l'id (ex "Station" qui n'est pas une instance cdb)
+_poiname0 = lambda k: _poitr.get(k) or _poi_name.get(k) or k
+poiname = lambda x: _poiname0(x[4:]) if is_poi(x) else _poiname0(x)
 # options du multiselect POI, dedoublonnees par nom traduit
 _poi_by_nm = {}
 for _pid in _world0.get("pois", {}):
