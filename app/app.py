@@ -467,20 +467,44 @@ if _sel == "tab_craftmap":
     _best = graph_data.best_recipes(sheets, items)
     _cnm = lambda i: items.get(i, {}).get("name", i)
     _LET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    def _optdf(_rows):  # arbre BRANCHANT -> tableau (items + options A/B/C des sous-composants)
-        out = []
+    _esc = lambda s: str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    def _node_line(n):  # ligne d'un nœud (item coloré + qté + prix + station, ou option A/B/C)
+        if n["kind"] == "item":
+            iid = n["id"]; pr = items.get(iid, {}).get("price", 0)
+            col = "#e8542f" if n["depth"] == 0 else ("#4575b4" if n["children"] else "#1a9850")  # produit/intermédiaire/brut
+            sta = f" · {_esc(n['station'])}" if n.get("station") else ""
+            return (f"<b style='color:{col}'>{_esc(_cnm(iid))}</b> "
+                    f"<span style='color:#999'>×{n['qty']}</span>"
+                    f"<span style='color:#777'> — {pr:.2f}{sta}</span>")
+        chosen = " ✅" if n.get("chosen") else ""
+        return (f"<span style='color:#d9a441'>⎇ {T('alt_option')} {_LET[n['idx']]} · "
+                f"{_esc(unlock_label(n['unlock']))}{chosen}</span>")
+    def _tree_html(_rows):  # arbre repliable : <details> = pliage natif navigateur (pas de rerun)
+        root = {"depth": -1, "children": []}
+        stack = [root]
         for r in _rows:
-            ind = ("　" * r["depth"] + "└ ") if r["depth"] else ""
-            if r["kind"] == "item":
-                out.append({T("col_comp"): ind + _cnm(r["id"]), T("col_qty2"): r["qty"],
-                            T("col_price"): items.get(r["id"], {}).get("price", 0), T("col_station"): r.get("station", "")})
-            else:  # ligne 'option' = un choix de recette pour le composant au-dessus
-                lab = f'⎇ {T("alt_option")} {_LET[r["idx"]]} · {unlock_label(r["unlock"])}' + (" ✅" if r["chosen"] else "")
-                out.append({T("col_comp"): ind + lab, T("col_qty2"): None, T("col_price"): None, T("col_station"): r.get("station", "")})
-        return pd.DataFrame(out)
+            node = dict(r, children=[])
+            while stack[-1]["depth"] >= r["depth"]:
+                stack.pop()
+            stack[-1]["children"].append(node)
+            stack.append(node)
+        def render(nodes):
+            out = []
+            for n in nodes:
+                ln = _node_line(n)
+                if n["children"]:
+                    out.append(f"<details open style='margin:2px 0 2px 13px'>"
+                               f"<summary>{ln}</summary>{render(n['children'])}</details>")
+                else:
+                    out.append(f"<div style='margin:2px 0 2px 26px'>{ln}</div>")
+            return "".join(out)
+        return ("<style>body{margin:0;background:#0e1117;color:#fafafa;font-family:'Source Sans Pro',sans-serif;font-size:14px}"
+                "summary{cursor:pointer;list-style:none}summary::-webkit-details-marker{display:none}"
+                "details>summary:before{content:'▾ ';color:#888}details:not([open])>summary:before{content:'▸ ';color:#888}</style>"
+                f"<div style='line-height:1.6'>{render(root['children'])}</div>")
     if cmode == "v_table":
-        # recettes du produit : la choisie (moins chère) en 1er, puis les alternatives. Chaque tableau
-        # BRANCHE sur les sous-composants multi-recettes (Options A/B/C + sous-craft).
+        # recettes du produit : la choisie (moins chère) en 1er, puis les alternatives. Arbre REPLIABLE,
+        # qui BRANCHE sur les sous-composants multi-recettes (Options A/B/C + sous-craft).
         _prodrecs = _allrec.get(sel_prod, [])
         _ch = _best.get(sel_prod)
         _chosen = next((r for r in _prodrecs if _ch and list(r[0]) == list(_ch[0])), _prodrecs[0] if _prodrecs else None)
@@ -492,8 +516,7 @@ if _sel == "tab_craftmap":
             st.markdown(_head)
             _ot = graph_data.options_tree(sheets, items, sel_prod, _ins, out_qty=_oq, root_where=_where,
                                           qty=qtymake, allrec=_allrec, best=_best, max_depth=depth)
-            st.dataframe(_optdf(_ot), hide_index=True, width="stretch", height=460 if _n == 0 else 340,
-                         column_config={T("col_price"): st.column_config.NumberColumn(format="%.2f")})
+            components.html(_tree_html(_ot), height=min(650, max(120, len(_ot) * 26 + 24)), scrolling=True)
     else:
         nodes, edges = graph_data.craft_chain(sheets, items, sel_prod, max_depth=depth)
         components.html(graph_data.to_html(nodes, edges, height="560px", hierarchical=True, direction="DU"), height=580)
