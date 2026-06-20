@@ -113,6 +113,7 @@ def abundance_map(flat):
         idx[(rg, sy, pl, res)] = {
             "density": r.get("density"), "count": r.get("count"),
             "source_type": r.get("source_type"), "body_type": r.get("body_type"),
+            "facilities": r.get("facilities"),
         }
     return idx
 

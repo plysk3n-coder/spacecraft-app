@@ -270,6 +270,7 @@ UI = {
     "poi_help":     {"fr": "Les POI / bases du jeu (entrepôts, mines abandonnées, centres de renseignements, épaves…) et où la communauté les a découverts.",
                      "en": "In-game POIs / bases (warehouses, abandoned mines, intelligence centers, shipwrecks…) and where the community found them."},
     "poi_type_filter": {"fr": "Filtrer par type (optionnel)", "en": "Filter by type (optional)"},
+    "poi_col_services": {"fr": "Services", "en": "Services"},
     "poi_col_name": {"fr": "POI / Base", "en": "POI / Base"},
     "poi_count":    {"fr": "{n} POI découvert(s).", "en": "{n} POI(s) discovered."},
     "poi_empty":    {"fr": "Aucun POI découvert pour l'instant — ajoute-en depuis l'onglet Carte communautaire (section 🏛️ Bases / POI).",

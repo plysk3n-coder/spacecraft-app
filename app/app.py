@@ -207,6 +207,18 @@ itemname = lambda x: ("🏛️ " + poiname(x)) if is_poi(x) else resname(x)
 _POI_EXTRA = {"ShipWreck_Core"}
 is_poi_like = lambda x: is_poi(x) or x in _POI_EXTRA
 poi_label = lambda x: poiname(x) if is_poi(x) else resname(x)
+# Traduction des services de station (facilities du scrape spacecraft.tools)
+_FACIL_TR = {
+    "Dock": {"fr": "Quai", "en": "Dock"},
+    "ShipYard": {"fr": "Chantier naval", "en": "Shipyard"},
+    "MiningBureau": {"fr": "Bureau minier", "en": "Mining Bureau"},
+    "Marketplace": {"fr": "Marché", "en": "Marketplace"},
+    "Laboratory": {"fr": "Laboratoire", "en": "Laboratory"},
+}
+def facil_label(csv):
+    if not csv:
+        return ""
+    return ", ".join(_FACIL_TR.get(f, {}).get(lang, f) for f in str(csv).split(",") if f)
 
 shared = cloud_store.available()
 map_err = None
@@ -525,14 +537,17 @@ if _sel == "tab_deposits":
 if _sel == "tab_poi":
     st.caption(T("poi_help"))
     # liste a plat des POI decouverts (carte communautaire) : POI | Planete | Systeme | Secteur
+    _meta = discoveries.abundance_map(fetch_shared()) if shared else {}
     _prows = []
     for rg, rgd in map_data.get("regions", {}).items():
         for sy, syd in rgd.get("systems", {}).items():
             for pl, pld in syd.get("planets", {}).items():
                 for x in pld.get("resources", []):
                     if is_poi_like(x):
+                        svc = facil_label(_meta.get((rg, sy, pl, x), {}).get("facilities"))
                         _prows.append({T("poi_col_name"): poi_label(x), T("col_planet"): pl,
-                                       T("col_system"): sy, T("col_sector"): rg})
+                                       T("col_system"): sy, T("col_sector"): rg,
+                                       T("poi_col_services"): svc})
     if not _prows:
         st.info(T("poi_empty"))
     else:
@@ -543,7 +558,8 @@ if _sel == "tab_poi":
             _prows = [d for d in _prows if d[T("poi_col_name")] in _tf]
         _prows.sort(key=lambda d: (d[T("poi_col_name")], d[T("col_sector")], d[T("col_system")], d[T("col_planet")]))
         st.caption(T("poi_count").format(n=len(_prows)))
-        st.dataframe(pd.DataFrame(_prows)[[T("poi_col_name"), T("col_planet"), T("col_system"), T("col_sector")]],
+        st.dataframe(pd.DataFrame(_prows)[[T("poi_col_name"), T("col_planet"), T("col_system"),
+                                           T("col_sector"), T("poi_col_services")]],
                      hide_index=True, width="stretch", height=500)
 
 if _sel == "tab_mymap":
