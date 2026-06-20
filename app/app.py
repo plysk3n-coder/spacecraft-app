@@ -463,43 +463,27 @@ if _sel == "tab_craftmap":
     cmode = cc[3].radio(T("view"), ["v_table", "v_graph"], format_func=T, key="cmode")
 
     _allrec = graph_data.all_prod_recipes(sheets)
-    _cnm = lambda i: items.get(i, {}).get("name", i)
-    if cmode == "v_table":
-        rows = graph_data.craft_tree_rows(sheets, items, sel_prod, qty=qtymake, max_depth=depth)
-        def _comp(r):
-            base = (("　" * (r["depth"] - 1) + "└ ") if r["depth"] else "") + r["name"]
-            return base + (" 🔀" if len(_allrec.get(r["id"], [])) > 1 else "")  # 🔀 = recettes alternatives
-        dft = pd.DataFrame([{
-            T("col_comp"): _comp(r),
+    _best = graph_data.best_recipes(sheets, items)
+    def _treedf(_rows):  # même format que le tableau principal
+        return pd.DataFrame([{
+            T("col_comp"): (("　" * (r["depth"] - 1) + "└ ") if r["depth"] else "") + r["name"],
             T("col_qty2"): r["qty"], T("col_price"): r["price"], T("col_station"): r["station"]}
-            for r in rows])
-        st.dataframe(dft, hide_index=True, width="stretch", height=430,
+            for r in _rows])
+    if cmode == "v_table":
+        # 1er tableau = recette la moins chère (mise à l'échelle de la quantité)
+        rows = graph_data.craft_tree_rows(sheets, items, sel_prod, qty=qtymake, max_depth=depth)
+        st.dataframe(_treedf(rows), hide_index=True, width="stretch", height=430,
                      column_config={T("col_price"): st.column_config.NumberColumn(format="%.2f")})
-        # --- recettes alternatives (blueprints) des items de la chaîne ---
-        _best = graph_data.best_recipes(sheets, items)
-        _multi, _seen = [], set()
-        for r in rows:
-            iid = r.get("id")
-            if iid and iid not in _seen and len(_allrec.get(iid, [])) > 1:
-                _seen.add(iid); _multi.append(iid)
-        if _multi:
-            with st.expander(T("alt_title").format(n=len(_multi))):
-                st.caption(T("alt_help"))
-                for iid in _multi:
-                    recs = _allrec[iid]
-                    ch = _best.get(iid)
-                    st.markdown(f"### {_cnm(iid)} — {len(recs)} {T('alt_word')}")
-                    for ins, unlock, rid, oq in recs:
-                        mark = "✅" if (ch and list(ins) == list(ch[0])) else "•"
-                        _batch = f" · {T('alt_batch').format(n=oq)}" if oq > 1 else ""
-                        st.markdown(f"{mark} _{unlock_label(unlock)}_{_batch}")
-                        # arbre COMPLET de cette recette (jusqu'aux matières brutes), à l'échelle naturelle
-                        _sub = graph_data.craft_subtree(sheets, items, ins, out_qty=oq, qty=oq, best=_best, max_depth=depth)
-                        if _sub:
-                            st.text("\n".join(
-                                ("　" * sr["depth"] + ("└ " if sr["depth"] else "• ")) +
-                                f"{sr['qty']}× {sr['name']}" + (f"   [{sr['station']}]" if sr["station"] else "")
-                                for sr in _sub))
+        # puis un tableau IDENTIQUE par recette ALTERNATIVE du produit sélectionné (sous-composants non détaillés)
+        _ch = _best.get(sel_prod)
+        _alts = [r for r in _allrec.get(sel_prod, []) if not (_ch and list(r[0]) == list(_ch[0]))]
+        for _ins, _unlock, _rid, _oq, _where in _alts:
+            _batch = f" · {T('alt_batch').format(n=_oq)}" if _oq > 1 else ""
+            st.markdown(f"#### 🔀 {T('alt_recipe_one')} — _{unlock_label(_unlock)}_{_batch}")
+            _arows = graph_data.craft_tree_alt(sheets, items, sel_prod, _ins, out_qty=_oq, root_where=_where,
+                                               qty=qtymake, best=_best, max_depth=depth)
+            st.dataframe(_treedf(_arows), hide_index=True, width="stretch", height=300,
+                         column_config={T("col_price"): st.column_config.NumberColumn(format="%.2f")})
     else:
         nodes, edges = graph_data.craft_chain(sheets, items, sel_prod, max_depth=depth)
         components.html(graph_data.to_html(nodes, edges, height="560px", hierarchical=True, direction="DU"), height=580)

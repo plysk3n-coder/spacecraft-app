@@ -253,17 +253,19 @@ def all_prod_recipes(sheets):
         ins = [(i.get("item"), int(i.get("qty", 1) or 1)) for i in (c.get("inputs") or [])]
         for o in (c.get("outputs") or []):
             oq = int(o.get("qty", 1) or 1)
-            idx.setdefault(o.get("item"), []).append((ins, unlock, c.get("id"), oq))
+            idx.setdefault(o.get("item"), []).append((ins, unlock, c.get("id"), oq, c.get("where", "")))
     return idx
 
 
-def craft_subtree(sheets, items, inputs, out_qty=1, qty=1.0, best=None, max_depth=6, max_rows=200):
-    """Arbre COMPLET pour une recette EXPLICITE (ses `inputs`, produisant `out_qty`) : chaque entrée
-    est ensuite développée par la voie la moins chère, jusqu'aux matières brutes. Sert à détailler
-    une recette alternative exactement comme la recette principale. -> lignes {depth,name,qty,station,craftable}."""
+def craft_tree_alt(sheets, items, product_id, inputs, out_qty=1, root_where="", qty=1.0,
+                   best=None, max_depth=4, max_rows=250):
+    """Identique à craft_tree_rows MAIS en FORÇANT la recette du produit racine (ses `inputs`,
+    produisant `out_qty`, station `root_where`). Le reste de l'arbre suit la voie la moins chère.
+    -> mêmes lignes {depth,name,qty,price,station,craftable} -> même tableau que la recette principale."""
     best = best if best is not None else best_recipes(sheets, items)
     stations = _item_station(sheets)
     nm = lambda i: items.get(i, {}).get("name", i)
+    pr = lambda i: items.get(i, {}).get("price", 0)
     fmt = lambda q: int(q) if abs(q - round(q)) < 1e-9 else round(q, 2)
     rows, seen = [], set()
 
@@ -271,7 +273,7 @@ def craft_subtree(sheets, items, inputs, out_qty=1, qty=1.0, best=None, max_dept
         if len(rows) >= max_rows:
             return
         craftable = i in best
-        rows.append({"depth": depth, "name": nm(i), "qty": fmt(need),
+        rows.append({"depth": depth, "name": nm(i), "qty": fmt(need), "price": pr(i),
                      "station": stations.get(i, "") if craftable else "", "craftable": craftable})
         if depth >= max_depth or i in seen or not craftable:
             return
@@ -281,9 +283,13 @@ def craft_subtree(sheets, items, inputs, out_qty=1, qty=1.0, best=None, max_dept
         for ii, q in cins:
             rec(ii, q * runs, depth + 1)
 
+    # racine = le produit via la recette alternative forcée
+    rows.append({"depth": 0, "name": nm(product_id), "qty": fmt(qty), "price": pr(product_id),
+                 "station": root_where, "craftable": True})
+    seen.add(product_id)
     runs0 = float(qty) / (out_qty or 1)
     for ii, q in inputs:
-        rec(ii, q * runs0, 0)
+        rec(ii, q * runs0, 1)
     return rows
 
 
