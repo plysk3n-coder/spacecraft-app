@@ -359,6 +359,26 @@ if _sel == "tab_items":
             else:
                 st.caption(T("item_used_none"))
 
+        # --- Où miner cet item (carte communautaire) : ses gisements -> localisations découvertes ---
+        st.caption(T("item_mine_where"))
+        _src = w["item_sources"].get(_isel, [])
+        _abund2 = discoveries.abundance_map(fetch_shared()) if shared else {}
+        _mine = []
+        for s in _src:
+            _rid = s.get("res")
+            if not _rid:
+                continue
+            for rg, sy, pl in discoveries.find_resource(map_data, _rid):
+                a = _abund2.get((rg, sy, pl, _rid), {})
+                _mine.append({T("col_deposit"): s.get("name"), T("col_sector"): rg, T("col_system"): sy,
+                              T("col_planet"): pl, T("col_count"): a.get("count"),
+                              T("col_density"): a.get("density"), T("col_bodytype"): body_label(a.get("body_type"))})
+        if _mine:
+            _mine.sort(key=lambda d: (-(d[T("col_count")] or 0), d[T("col_sector")], d[T("col_system")]))
+            st.dataframe(pd.DataFrame(_mine), hide_index=True, width="stretch", height=300)
+        else:
+            st.caption(T("item_mine_none"))
+
 if _sel == "tab_craftmap":
     st.caption(T("craftmap_help"))
     sheets = load_sheets()
