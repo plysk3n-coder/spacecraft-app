@@ -256,6 +256,8 @@ UI = {
                          "en": "None of your discovered planets hold this ore yet — add discoveries in the Community map tab."},
     "col_system":   {"fr": "Système", "en": "System"},
     "col_planet":   {"fr": "Planète", "en": "Planet"},
+    "col_count":    {"fr": "Quantité", "en": "Quantity"},
+    "col_density":  {"fr": "Densité", "en": "Density"},
     "poi_help":     {"fr": "Les POI / bases du jeu (entrepôts, mines abandonnées, centres de renseignements…) et où la communauté les a découverts.",
                      "en": "In-game POIs / bases (warehouses, abandoned mines, intelligence centers…) and where the community found them."},
     "poi_col_name": {"fr": "POI / Base", "en": "POI / Base"},

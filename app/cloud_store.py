@@ -43,11 +43,21 @@ def _base():
 
 
 def fetch_all():
+    """Recupere TOUTES les lignes en paginant : PostgREST plafonne chaque reponse a ~1000
+    lignes (max-rows serveur). Sans pagination, l'app ne verrait que les 1000 premieres
+    decouvertes (depuis l'import Haronex la base depasse 17 000 lignes)."""
     import requests
-    r = requests.get(_base(), headers=_headers(),
-                     params={"select": SELECT, "order": "created_at"}, timeout=15)
-    r.raise_for_status()
-    return r.json()
+    out, step, offset = [], 1000, 0
+    while True:
+        r = requests.get(_base(), headers=_headers(),
+                         params={"select": SELECT, "order": "created_at",
+                                 "limit": step, "offset": offset}, timeout=30)
+        r.raise_for_status()
+        batch = r.json()
+        out.extend(batch)
+        if len(batch) < step:
+            return out
+        offset += step
 
 
 def add(region, system, planet, resources, author, author_id=None):

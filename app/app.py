@@ -463,14 +463,19 @@ if _sel == "tab_where":
         # Croisement avec les decouvertes (carte communautaire) : un item provient de
         # gisements (res ids) ; on liste les systemes/planetes ou ces gisements ont ete trouves.
         res_names = {s["res"]: s["name"] for s in srcs if s.get("res")}
+        _abund = discoveries.abundance_map(fetch_shared()) if shared else {}
         found = []
         for rid, dname in res_names.items():
             for rg, sy, pl in discoveries.find_resource(map_data, rid):
+                a = _abund.get((rg, sy, pl, rid), {})
                 found.append({T("col_sector"): rg, T("col_system"): sy,
-                              T("col_planet"): pl, T("col_deposit"): dname})
+                              T("col_planet"): pl, T("col_deposit"): dname,
+                              T("col_count"): a.get("count"), T("col_density"): a.get("density")})
         st.subheader(T("where_found"))
         if found:
-            found.sort(key=lambda d: (d[T("col_sector")], d[T("col_system")], d[T("col_planet")]))
+            # tri par quantite decroissante (meilleurs spots de minage d'abord ; None en dernier)
+            found.sort(key=lambda d: (-(d[T("col_count")] or 0), d[T("col_sector")],
+                                      d[T("col_system")], d[T("col_planet")]))
             st.dataframe(pd.DataFrame(found), hide_index=True, width="stretch")
         else:
             st.info(T("where_found_none"))

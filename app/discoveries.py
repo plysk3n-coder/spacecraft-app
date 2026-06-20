@@ -100,6 +100,23 @@ def all_resource_ids(data):
     return seen
 
 
+def abundance_map(flat):
+    """Index {(region, system, planete, resource): {density, count, source_type, body_type}}
+    construit depuis les lignes plates communautaires. Les colonnes density/count/source_type/
+    body_type ont ete ajoutees lors de l'import du quadrant Haronex (spacecraft.tools) ; absentes
+    des saisies manuelles plus anciennes -> valeurs None tolerees."""
+    idx = {}
+    for r in flat or []:
+        rg, sy, pl, res = r.get("region"), r.get("system"), r.get("planet"), r.get("resource")
+        if not (rg and sy and pl and res):
+            continue
+        idx[(rg, sy, pl, res)] = {
+            "density": r.get("density"), "count": r.get("count"),
+            "source_type": r.get("source_type"), "body_type": r.get("body_type"),
+        }
+    return idx
+
+
 def find_resource(data, res_id):
     """Liste des (region, systeme, planete) ou cette ressource a ete trouvee."""
     hits = []
