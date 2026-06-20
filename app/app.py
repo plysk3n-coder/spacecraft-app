@@ -488,11 +488,18 @@ if _sel == "tab_craftmap":
                 for iid in _multi:
                     recs = _allrec[iid]
                     ch = _best.get(iid)
-                    st.markdown(f"**{_cnm(iid)}** — {len(recs)} {T('alt_word')}")
-                    for ins, unlock, rid in recs:
+                    st.markdown(f"### {_cnm(iid)} — {len(recs)} {T('alt_word')}")
+                    for ins, unlock, rid, oq in recs:
                         mark = "✅" if (ch and list(ins) == list(ch[0])) else "•"
-                        ins_str = " + ".join(f"{q}× {_cnm(i)}" for i, q in ins) or "—"
-                        st.caption(f"{mark} _{unlock_label(unlock)}_ — {ins_str}")
+                        _batch = f" · {T('alt_batch').format(n=oq)}" if oq > 1 else ""
+                        st.markdown(f"{mark} _{unlock_label(unlock)}_{_batch}")
+                        # arbre COMPLET de cette recette (jusqu'aux matières brutes), à l'échelle naturelle
+                        _sub = graph_data.craft_subtree(sheets, items, ins, out_qty=oq, qty=oq, best=_best, max_depth=depth)
+                        if _sub:
+                            st.text("\n".join(
+                                ("　" * sr["depth"] + ("└ " if sr["depth"] else "• ")) +
+                                f"{sr['qty']}× {sr['name']}" + (f"   [{sr['station']}]" if sr["station"] else "")
+                                for sr in _sub))
     else:
         nodes, edges = graph_data.craft_chain(sheets, items, sel_prod, max_depth=depth)
         components.html(graph_data.to_html(nodes, edges, height="560px", hierarchical=True, direction="DU"), height=580)
