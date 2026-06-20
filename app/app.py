@@ -44,7 +44,9 @@ def load(overrides_key, lang):
     return items, recipes
 
 
-@st.cache_data(ttl=20, show_spinner=False)
+# ttl long : le cache est déjà vidé manuellement à chaque écriture (fetch_shared.clear()),
+# donc un contributeur voit toujours ses ajouts ; pas besoin de re-fetch toutes les 20 s.
+@st.cache_data(ttl=300, show_spinner=False)
 def fetch_shared():
     return cloud_store.fetch_all()
 
@@ -219,6 +221,9 @@ def facil_label(csv):
     if not csv:
         return ""
     return ", ".join(_FACIL_TR.get(f, {}).get(lang, f) for f in str(csv).split(",") if f)
+# Type de corps (du scrape) : seul "asteroidField" est notable (minage au vaisseau, pas d'atterrissage)
+_BODY_TR = {"asteroidField": {"fr": "Champ d'astéroïdes", "en": "Asteroid field"}}
+body_label = lambda b: _BODY_TR.get(b, {}).get(lang, "") if b else ""
 
 shared = cloud_store.available()
 map_err = None
@@ -398,8 +403,9 @@ if _sel == "tab_craftmap":
     dff = pd.DataFrame([{
         T("col_comp"): (("　" * (r["depth"] - 1) + "└ ") if r["depth"] else "") + r["name"],
         T("fac_c_rate"): r["rate"],
-        T("fac_c_machines"): r["machines"] if r["machines"] is not None else "—",
-        T("fac_c_mrate"): r["machine_rate"] if r["machine_rate"] is not None else "—",
+        # None (pas "—") -> colonne numérique -> tri correct ; affiché vide pour les matières brutes
+        T("fac_c_machines"): r["machines"],
+        T("fac_c_mrate"): r["machine_rate"],
         T("col_station"): r["station"]} for r in fac])
     st.dataframe(dff, hide_index=True, width="stretch", height=400)
     _raw = {}
@@ -491,7 +497,8 @@ if _sel == "tab_where":
                 a = _abund.get((rg, sy, pl, rid), {})
                 found.append({T("col_sector"): rg, T("col_system"): sy,
                               T("col_planet"): pl, T("col_deposit"): dname,
-                              T("col_count"): a.get("count"), T("col_density"): a.get("density")})
+                              T("col_count"): a.get("count"), T("col_density"): a.get("density"),
+                              T("col_bodytype"): body_label(a.get("body_type"))})
         st.subheader(T("where_found"))
         if found:
             # tri par quantite decroissante (meilleurs spots de minage d'abord ; None en dernier)
@@ -525,7 +532,8 @@ if _sel == "tab_deposits":
                     a = _abund.get((rg, sy, pl, rid), {})
                     _rows.append({T("col_deposit"): nm, T("col_sector"): rg, T("col_system"): sy,
                                   T("col_planet"): pl, T("col_count"): a.get("count"),
-                                  T("col_density"): a.get("density")})
+                                  T("col_density"): a.get("density"),
+                                  T("col_bodytype"): body_label(a.get("body_type"))})
             if _rows:
                 _rows.sort(key=lambda d: (-(d[T("col_count")] or 0), d[T("col_sector")],
                                           d[T("col_system")], d[T("col_planet")]))
@@ -710,8 +718,11 @@ if _sel == "tab_mymap":
                     rg, sy, pl = triples[dsel]
                     try:
                         if shared:
-                            cloud_store.delete_planet(rg, sy, pl, author or "anon")
+                            n_del = cloud_store.delete_planet(rg, sy, pl, author or "anon")
                             fetch_shared.clear()
+                            if not n_del:  # 0 ligne -> planète d'un autre auteur, pas la tienne
+                                st.warning(T("mm_del_notyours"))
+                                st.stop()
                         else:
                             discoveries.remove_planet(data, rg, sy, pl)
                             discoveries.save(data)

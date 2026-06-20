@@ -50,7 +50,7 @@ def fetch_all():
     out, step, offset = [], 1000, 0
     while True:
         r = requests.get(_base(), headers=_headers(),
-                         params={"select": SELECT, "order": "created_at",
+                         params={"select": SELECT, "order": "created_at,id",
                                  "limit": step, "offset": offset}, timeout=30)
         r.raise_for_status()
         batch = r.json()
@@ -108,19 +108,26 @@ def delete_by_author(author_id):
 
 
 def delete_planet(region, system, planet, author):
-    """Supprime les lignes de CET auteur pour cette planete (chacun gere ses propres entrees)."""
-    delete_where(region=region, system=system, planet=planet, author=author)
+    """Supprime les lignes de CET auteur pour cette planete (chacun gere ses propres entrees).
+    Retourne le nb de lignes supprimees (0 = rien, ex planete d'un autre auteur)."""
+    return delete_where(region=region, system=system, planet=planet, author=author)
 
 
 def delete_where(**filters):
     """Suppression ADMIN : supprime toutes les lignes correspondant aux filtres (sans contrainte
-    d'auteur). Au moins un filtre requis (PostgREST refuse un DELETE sans filtre)."""
+    d'auteur). Au moins un filtre requis (PostgREST refuse un DELETE sans filtre).
+    Retourne le NOMBRE de lignes réellement supprimées (0 = aucune correspondance)."""
     import requests
     if not filters:
         raise ValueError("delete_where requiert au moins un filtre")
     params = {k: f"eq.{v}" for k, v in filters.items()}
-    r = requests.delete(_base(), headers=_headers(), params=params, timeout=15)
+    h = _headers(); h["Prefer"] = "return=representation"  # renvoie les lignes -> on peut compter
+    r = requests.delete(_base(), headers=h, params=params, timeout=15)
     r.raise_for_status()
+    try:
+        return len(r.json())
+    except Exception:
+        return 0
 
 
 def update_where(filters, changes):
