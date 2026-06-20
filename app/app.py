@@ -464,25 +464,34 @@ if _sel == "tab_craftmap":
 
     _allrec = graph_data.all_prod_recipes(sheets)
     _best = graph_data.best_recipes(sheets, items)
-    def _treedf(_rows):  # même format que le tableau principal
-        return pd.DataFrame([{
-            T("col_comp"): (("　" * (r["depth"] - 1) + "└ ") if r["depth"] else "") + r["name"],
-            T("col_qty2"): r["qty"], T("col_price"): r["price"], T("col_station"): r["station"]}
-            for r in _rows])
+    _cnm = lambda i: items.get(i, {}).get("name", i)
+    _LET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    def _optdf(_rows):  # arbre BRANCHANT -> tableau (items + options A/B/C des sous-composants)
+        out = []
+        for r in _rows:
+            ind = ("　" * r["depth"] + "└ ") if r["depth"] else ""
+            if r["kind"] == "item":
+                out.append({T("col_comp"): ind + _cnm(r["id"]), T("col_qty2"): r["qty"],
+                            T("col_price"): items.get(r["id"], {}).get("price", 0), T("col_station"): r.get("station", "")})
+            else:  # ligne 'option' = un choix de recette pour le composant au-dessus
+                lab = f'⎇ {T("alt_option")} {_LET[r["idx"]]} · {unlock_label(r["unlock"])}' + (" ✅" if r["chosen"] else "")
+                out.append({T("col_comp"): ind + lab, T("col_qty2"): None, T("col_price"): None, T("col_station"): r.get("station", "")})
+        return pd.DataFrame(out)
     if cmode == "v_table":
-        # 1er tableau = recette la moins chère (mise à l'échelle de la quantité)
-        rows = graph_data.craft_tree_rows(sheets, items, sel_prod, qty=qtymake, max_depth=depth)
-        st.dataframe(_treedf(rows), hide_index=True, width="stretch", height=430,
-                     column_config={T("col_price"): st.column_config.NumberColumn(format="%.2f")})
-        # puis un tableau IDENTIQUE par recette ALTERNATIVE du produit sélectionné (sous-composants non détaillés)
+        # recettes du produit : la choisie (moins chère) en 1er, puis les alternatives. Chaque tableau
+        # BRANCHE sur les sous-composants multi-recettes (Options A/B/C + sous-craft).
+        _prodrecs = _allrec.get(sel_prod, [])
         _ch = _best.get(sel_prod)
-        _alts = [r for r in _allrec.get(sel_prod, []) if not (_ch and list(r[0]) == list(_ch[0]))]
-        for _ins, _unlock, _rid, _oq, _where in _alts:
+        _chosen = next((r for r in _prodrecs if _ch and list(r[0]) == list(_ch[0])), _prodrecs[0] if _prodrecs else None)
+        _ordered = ([_chosen] if _chosen else []) + [r for r in _prodrecs if r is not _chosen]
+        for _n, (_ins, _unlock, _rid, _oq, _where) in enumerate(_ordered):
             _batch = f" · {T('alt_batch').format(n=_oq)}" if _oq > 1 else ""
-            st.markdown(f"#### 🔀 {T('alt_recipe_one')} — _{unlock_label(_unlock)}_{_batch}")
-            _arows = graph_data.craft_tree_alt(sheets, items, sel_prod, _ins, out_qty=_oq, root_where=_where,
-                                               qty=qtymake, best=_best, max_depth=depth)
-            st.dataframe(_treedf(_arows), hide_index=True, width="stretch", height=300,
+            _head = f"#### {_cnm(sel_prod)} — _{unlock_label(_unlock)}_{_batch}" if _n == 0 \
+                else f"#### 🔀 {T('alt_recipe_one')} — _{unlock_label(_unlock)}_{_batch}"
+            st.markdown(_head)
+            _ot = graph_data.options_tree(sheets, items, sel_prod, _ins, out_qty=_oq, root_where=_where,
+                                          qty=qtymake, allrec=_allrec, best=_best, max_depth=depth)
+            st.dataframe(_optdf(_ot), hide_index=True, width="stretch", height=460 if _n == 0 else 340,
                          column_config={T("col_price"): st.column_config.NumberColumn(format="%.2f")})
     else:
         nodes, edges = graph_data.craft_chain(sheets, items, sel_prod, max_depth=depth)

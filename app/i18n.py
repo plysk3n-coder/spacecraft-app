@@ -51,6 +51,7 @@ UI = {
     "alt_word":     {"fr": "recettes", "en": "recipes"},
     "alt_batch":    {"fr": "lot de {n}", "en": "batch of {n}"},
     "alt_recipe_one": {"fr": "Recette alternative", "en": "Alternative recipe"},
+    "alt_option":   {"fr": "Option", "en": "Option"},
     "routes_help":  {"fr": "Choisis ton système : les systèmes atteignables en saut FTL, triés par coût (Dijkstra). Croise avec la carte communautaire pour viser un spot rentable accessible.",
                      "en": "Pick your system: reachable systems by FTL jump, sorted by cost (Dijkstra). Cross with the community map to target an accessible profitable spot."},
     "routes_origin": {"fr": "Ton système", "en": "Your system"},

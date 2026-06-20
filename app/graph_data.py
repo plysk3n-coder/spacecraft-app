@@ -293,6 +293,50 @@ def craft_tree_alt(sheets, items, product_id, inputs, out_qty=1, root_where="", 
     return rows
 
 
+def options_tree(sheets, items, root_id, inputs, out_qty=1, root_where="", qty=1.0,
+                 allrec=None, best=None, max_depth=4, max_rows=400):
+    """Arbre de craft qui BRANCHE : sous chaque item ayant PLUSIEURS recettes, une 'option' par
+    recette (A/B/C…) avec ses entrées mises à l'échelle + leurs sous-crafts. Racine = recette forcée
+    (`inputs`/`out_qty`). Cycle-safe (par chemin), borné max_depth/max_rows.
+    -> lignes {depth, kind('item'|'option'), id|idx, qty, station, unlock, chosen}."""
+    allrec = allrec if allrec is not None else all_prod_recipes(sheets)
+    best = best if best is not None else best_recipes(sheets, items)
+    fmt = lambda q: int(q) if abs(q - round(q)) < 1e-9 else round(q, 2)
+    rows = []
+
+    def add_item(item, need, depth, path):
+        if len(rows) >= max_rows:
+            return
+        row = {"depth": depth, "kind": "item", "id": item, "qty": fmt(need), "station": ""}
+        rows.append(row)
+        recs = allrec.get(item, [])
+        if not recs or item in path or depth >= max_depth:
+            return
+        npath = path | {item}
+        if len(recs) == 1:
+            ins, unlock, rid, oq, where = recs[0]
+            row["station"] = where
+            r = need / (oq or 1)
+            for ii, q in ins:
+                add_item(ii, q * r, depth + 1, npath)
+        else:
+            ch = best.get(item)
+            for k, (ins, unlock, rid, oq, where) in enumerate(recs):
+                if len(rows) >= max_rows:
+                    break
+                rows.append({"depth": depth + 1, "kind": "option", "idx": k, "unlock": unlock,
+                             "station": where, "chosen": bool(ch and list(ins) == list(ch[0]))})
+                r = need / (oq or 1)
+                for ii, q in ins:
+                    add_item(ii, q * r, depth + 2, npath)
+
+    rows.append({"depth": 0, "kind": "item", "id": root_id, "qty": fmt(qty), "station": root_where})
+    runs0 = float(qty) / (out_qty or 1)
+    for ii, q in inputs:
+        add_item(ii, q * runs0, 1, frozenset({root_id}))
+    return rows
+
+
 def craftable_products(sheets, items):
     out = set()
     for c in cdb_model._lines(sheets, "craft"):
