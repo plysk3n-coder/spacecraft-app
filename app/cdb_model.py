@@ -120,6 +120,7 @@ def build(sheets, price_overrides=None, tr=None):
             "id": l.get("id"),
             "product": iname(main_out),
             "product_id": main_out,
+            "all_outputs": out_list,  # [(item_id, qty)] toutes sorties (recettes multi-output)
             "va": round(va, 2),
             "out_qty": out_list[0][1] if out_list else 1,
             "va_per_h": va_per_h,

@@ -157,13 +157,18 @@ if steam_auth.is_admin(st.session_state.get("steam_user")):
 overrides_key = tuple(sorted(st.session_state.get("overrides", {}).items()))
 items, recipes = load(overrides_key, lang)
 df = pd.DataFrame(recipes)
-# temps de craft auto par produit (recette de BASE en priorité) pour le plan d'usine
+# temps de craft auto par produit (recette de BASE en priorité) pour le plan d'usine.
+# Indexé sur TOUTES les sorties (pas seulement la principale) -> les sous-produits (Calcite,
+# MalachiteStone, QuartzShavings…) sont dimensionnables eux aussi (M3 cause b).
 _product_time = {}
-for _r in recipes:
-    if _r.get("unlock") == "Permit":
-        _product_time.setdefault(_r["product_id"], (_r.get("t_auto") or 0, _r.get("out_qty") or 1, _r.get("station") or "", _r.get("power") or 0))
-for _r in recipes:  # fallback : produits sans recette de base
-    _product_time.setdefault(_r["product_id"], (_r.get("t_auto") or 0, _r.get("out_qty") or 1, _r.get("station") or "", _r.get("power") or 0))
+def _index_pt(only_base):
+    for _r in recipes:
+        if only_base and _r.get("unlock") != "Permit":
+            continue
+        for _oid, _oq in _r.get("all_outputs") or [(_r["product_id"], _r.get("out_qty") or 1)]:
+            _product_time.setdefault(_oid, (_r.get("t_auto") or 0, _oq or 1, _r.get("station") or "", _r.get("power") or 0))
+_index_pt(True)   # recettes de base d'abord
+_index_pt(False)  # fallback : produits sans recette de base
 
 # --- données partagées entre onglets : gisements + carte de découvertes ---
 _world0 = load_world()

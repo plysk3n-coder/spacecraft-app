@@ -155,37 +155,43 @@ def craft_tree_rows(sheets, items, product_id, qty=1.0, max_depth=4, max_rows=25
 
 
 def factory_plan(sheets, items, product_time, product_id, target_per_h, max_depth=12, max_rows=250):
-    """Plan d'usine : pour produire `target_per_h` unités/heure du produit, combien d'unités/h de
-    chaque composant + combien de MACHINES par étape (tient compte des sorties multiples et du temps
-    de craft auto). product_time = {item_id: (t_auto_s, out_qty, station)}. -> lignes triées DFS."""
+    """Plan d'usine : pour produire `target_per_h` unités/heure du produit, débit + nombre de
+    MACHINES + énergie par composant. product_time = {item_id: (t_auto_s, out_qty, station, power)}.
+    AGRÉGÉ PAR ITEM (1 ligne/composant) : un intermédiaire partagé par 2 branches (graphe en
+    losange) voit ses débits SOMMÉS avant dimensionnement -> machines/énergie correctes (M3 cause a).
+    `depth` = profondeur de 1re apparition (pour l'indentation), l'ordre = ordre de découverte DFS."""
     best = best_recipes(sheets, items)
     nm = lambda i: items.get(i, {}).get("name", i)
     import math
-    rows, seen = [], set()
+    rate, order, mindepth = {}, [], {}
 
-    def rec(i, rate, depth):
-        if len(rows) >= max_rows:
+    def rec(i, r, path, depth):  # path = anti-cycle (set du chemin courant), pas un `seen` global
+        if i not in rate:
+            order.append(i); mindepth[i] = depth
+        rate[i] = rate.get(i, 0.0) + r
+        mindepth[i] = min(mindepth[i], depth)
+        if i not in best or i in path or depth >= max_depth:
             return
+        ins, oq = best[i]
+        runs = r / (oq or 1)
+        for ii, q in ins:
+            rec(ii, q * runs, path | {i}, depth + 1)
+
+    rec(product_id, float(target_per_h), frozenset(), 0)
+    rows = []
+    for i in order[:max_rows]:
+        rt = rate[i]
         pt = product_time.get(i)
         machines, station, mrate, energy_h = None, "", 0.0, 0.0
         if pt and pt[0]:
             t_auto, oq_t, station = pt[0], pt[1], pt[2]
             power = pt[3] if len(pt) > 3 else 0
             mrate = oq_t / t_auto * 3600.0  # unités/h par machine
-            machines = math.ceil(rate / mrate) if mrate else None
-            energy_h = (rate / (oq_t or 1)) * (power or 0)  # runs/h × énergie/craft
-        rows.append({"depth": depth, "name": nm(i), "rate": round(rate, 2),
+            machines = math.ceil(rt / mrate) if mrate else None
+            energy_h = (rt / (oq_t or 1)) * (power or 0)  # runs/h × énergie/craft
+        rows.append({"depth": mindepth[i], "name": nm(i), "rate": round(rt, 2),
                      "machines": machines, "machine_rate": round(mrate, 1) if mrate else None,
                      "energy_h": round(energy_h), "station": station})
-        if depth >= max_depth or i in seen or i not in best:
-            return
-        seen.add(i)
-        ins, oq = best[i]
-        runs = rate / (oq or 1)
-        for ii, q in ins:
-            rec(ii, q * runs, depth + 1)
-
-    rec(product_id, float(target_per_h), 0)
     return rows
 
 
