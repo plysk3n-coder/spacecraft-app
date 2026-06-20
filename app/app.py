@@ -18,6 +18,7 @@ import discoveries
 import cloud_store
 import steam_auth
 import market_data
+import routes_data
 
 st.set_page_config(page_title="SpaceCraft - Rentabilite", page_icon="🚀", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -40,6 +41,11 @@ def load_world(_schema_v=5):  # _schema_v : bump pour invalider le cache quand w
 @st.cache_data(show_spinner=False)
 def load_market():
     return market_data.sell_index(cdb_model.load_cdb())
+
+
+@st.cache_data(show_spinner=False)
+def load_routes():
+    return routes_data.load()
 
 
 @st.cache_data(show_spinner=False)
@@ -260,7 +266,7 @@ world = w = _world0
 # (survit aux reruns ET au F5, comme rg/sy) + session_state via la clé du widget.
 _qp = st.query_params
 # Ordre des menus (exploration/carte d'abord, puis craft/économie, puis builders/progression).
-_keys = ["tab_where", "tab_deposits", "tab_mymap", "tab_poi", "tab_universe",
+_keys = ["tab_where", "tab_deposits", "tab_mymap", "tab_poi", "tab_universe", "tab_routes",
          "tab_recipes", "tab_items", "tab_craftmap",
          "tab_ship", "tab_base", "tab_permits", "tab_contracts"]
 if admin:
@@ -273,6 +279,37 @@ if _sel not in _keys:
     _sel = _keys[0]
 if _qp.get("tab") != _sel:
     _qp["tab"] = _sel
+
+if _sel == "tab_routes":
+    st.caption(T("routes_help"))
+    _rd = load_routes()
+    _n2i = routes_data.name_to_id(_rd)
+    _origin = st.columns([2, 1, 2])
+    _osys = _origin[0].selectbox(T("routes_origin"), sorted(_n2i.keys()), key="routes_origin")
+    _maxc = _origin[1].number_input(T("routes_maxcost"), min_value=0, value=0, step=10, key="routes_maxc")
+    _onlyd = _origin[2].checkbox(T("routes_only_disc"), key="routes_onlyd")
+    _oid = _n2i[_osys]
+    _cf = routes_data.costs_from(_rd, _oid)
+    if len(_cf) <= 1:
+        st.info(T("routes_unknown"))
+    else:
+        _disc = {sy.lower() for rgd in map_data["regions"].values() for sy in rgd.get("systems", {})}
+        _rows = []
+        for _sid, (_cst, _hop) in _cf.items():
+            if _sid == _oid:
+                continue
+            _sm = _rd["systems"][_sid]
+            if _maxc and _cst > _maxc:
+                continue
+            _has = _sm["name"].lower() in _disc
+            if _onlyd and not _has:
+                continue
+            _rows.append({T("routes_col_cost"): _cst, T("routes_col_hops"): _hop,
+                          T("col_system"): _sm["name"], T("col_sector"): _sm.get("sector"),
+                          T("routes_col_disc"): "✓" if _has else ""})
+        _rows.sort(key=lambda d: (d[T("routes_col_cost")], d[T("routes_col_hops")]))
+        st.caption(T("routes_count").format(n=len(_rows)))
+        st.dataframe(pd.DataFrame(_rows), hide_index=True, width="stretch", height=560)
 
 if _sel == "tab_recipes":
     c = st.columns([2, 1, 1, 1])
