@@ -20,15 +20,17 @@ _BASE_UNLOCK = 0
 
 
 def _craft_index(sheets):
-    """item_id -> liste de (recipe_id, [(in_item, qty)], out_qty, where, unlock)."""
+    """item_id -> liste de (recipe_id, [(in_item, qty)], out_qty, where, unlock, all_outputs).
+    `all_outputs` = TOUTES les sorties [(item, qty)] (nécessaire pour répartir le coût des
+    entrées entre co-produits sur les recettes multi-output)."""
     produced_by = {}
     for c in cdb_model._lines(sheets, "craft"):
         where = c.get("where", "")
         unlock = c.get("unlockType", 0)
         ins = [(i.get("item"), int(i.get("qty", 1) or 1)) for i in (c.get("inputs") or [])]
-        for o in (c.get("outputs") or []):
-            oq = int(o.get("qty", 1) or 1)
-            produced_by.setdefault(o.get("item"), []).append((c.get("id"), ins, oq, where, unlock))
+        outs = [(o.get("item"), int(o.get("qty", 1) or 1)) for o in (c.get("outputs") or [])]
+        for o, oq in outs:
+            produced_by.setdefault(o, []).append((c.get("id"), ins, oq, where, unlock, outs))
     return produced_by
 
 
@@ -42,37 +44,22 @@ def _candidates(recs):
     return base or norm or recs
 
 
-def best_recipes(sheets, items):
-    """Pour chaque item craftable, la recette de production qui MINIMISE le cout des entrees
-    (compare minerai vs pepite, etc., hors recyclage). Cycle-safe. -> item -> (ins, out_qty)."""
-    produced_by = _craft_index(sheets)
-    price = lambda i: items.get(i, {}).get("price", 0) or 0
-    memo, inprog = {}, set()
-
-    def unit_cost(i):
-        if i in memo:
-            return memo[i]
-        recs = produced_by.get(i)
-        if not recs or i in inprog:
-            return price(i)  # brut, ou cycle coupe
-        inprog.add(i)
-        best = min(sum(unit_cost(ii) * q for ii, q in ins) / (oq or 1) for _, ins, oq, _w, _u in _candidates(recs))
-        inprog.discard(i)
-        memo[i] = best
-        return best
-
-    best = {}
-    for i, recs in produced_by.items():
-        chosen = min(_candidates(recs),
-                     key=lambda r: sum((price(ii) if ii == i else unit_cost(ii)) * q for ii, q in r[1]) / (r[2] or 1))
-        best[i] = (chosen[1], chosen[2])  # (ins, out_qty)
-    return best
+def _recipe_unit_cost(i, r, uc, price):
+    """Coût unitaire de l'item `i` produit par la recette `r`, avec ALLOCATION CO-PRODUITS :
+    le coût des entrées est réparti entre toutes les sorties au prorata de leur valeur marché
+    (price×qty). Recette mono-output -> identique à coût_entrées / out_qty (inchangé).
+    Une recette multi-output ne facture donc à `i` que SA part, pas 100% (corrige M2)."""
+    _id, ins, oq, _w, _u, outs = r
+    in_cost = sum((price(ii) if ii == i else uc(ii)) * q for ii, q in ins)  # price si auto-ref (anti-cycle)
+    out_value = sum(price(o) * qo for o, qo in outs)
+    if out_value > 0:
+        return in_cost * price(i) / out_value   # part de `i` / sa propre qty (price annulé) = in_cost·price(i)/V
+    return in_cost / (oq or 1)                   # co-produits sans valeur marché -> repli mono-output
 
 
-def unit_costs(sheets, items):
-    """{item_id: coût en matières premières de la voie la moins chère} (1 unité). Cycle-safe."""
-    produced_by = _craft_index(sheets)
-    price = lambda i: items.get(i, {}).get("price", 0) or 0
+def _unit_cost_fn(produced_by, price):
+    """Fabrique la fonction `uc(item)` = coût en matières de la voie la moins chère. Mémoïsée,
+    cycle-safe. Partagée par best_recipes ET unit_costs (m7 : plus de duplication)."""
     memo, inprog = {}, set()
 
     def uc(i):
@@ -80,13 +67,35 @@ def unit_costs(sheets, items):
             return memo[i]
         recs = produced_by.get(i)
         if not recs or i in inprog:
-            return price(i)
+            return price(i)  # brut, ou cycle coupé
         inprog.add(i)
-        best = min(sum(uc(ii) * q for ii, q in ins) / (oq or 1) for _, ins, oq, _w, _u in _candidates(recs))
+        best = min(_recipe_unit_cost(i, r, uc, price) for r in _candidates(recs))
         inprog.discard(i)
         memo[i] = best
         return best
 
+    return uc
+
+
+def best_recipes(sheets, items):
+    """Pour chaque item craftable, la recette de production qui MINIMISE le cout (allocation
+    co-produits incluse, hors recyclage). Cycle-safe. -> item -> (ins, out_qty)."""
+    produced_by = _craft_index(sheets)
+    price = lambda i: items.get(i, {}).get("price", 0) or 0
+    uc = _unit_cost_fn(produced_by, price)
+    best = {}
+    for i, recs in produced_by.items():
+        chosen = min(_candidates(recs), key=lambda r: _recipe_unit_cost(i, r, uc, price))
+        best[i] = (chosen[1], chosen[2])  # (ins, out_qty)
+    return best
+
+
+def unit_costs(sheets, items):
+    """{item_id: coût en matières premières de la voie la moins chère} (1 unité). Cycle-safe,
+    allocation co-produits (M2)."""
+    produced_by = _craft_index(sheets)
+    price = lambda i: items.get(i, {}).get("price", 0) or 0
+    uc = _unit_cost_fn(produced_by, price)
     return {i: uc(i) for i in set(list(produced_by.keys()) + list(items.keys()))}
 
 
