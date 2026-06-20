@@ -202,6 +202,11 @@ for _pid in _world0.get("pois", {}):
 poi_ids = ["POI:" + _v for _v in sorted(_poi_by_nm.values(), key=lambda i: _poitr.get(i, i))]
 # nom d'affichage unifie d'une entree stockee (ressource OU poi prefixe "POI:")
 itemname = lambda x: ("🏛️ " + poiname(x)) if is_poi(x) else resname(x)
+# Ressources "structurelles" montrees AUSSI comme POI (ex epaves ShipWreck_Core). Elles RESTENT
+# des ressources par ailleurs (is_poi() faux) -> toujours presentes dans l'onglet Gisements.
+_POI_EXTRA = {"ShipWreck_Core"}
+is_poi_like = lambda x: is_poi(x) or x in _POI_EXTRA
+poi_label = lambda x: poiname(x) if is_poi(x) else resname(x)
 
 shared = cloud_store.available()
 map_err = None
@@ -525,12 +530,17 @@ if _sel == "tab_poi":
         for sy, syd in rgd.get("systems", {}).items():
             for pl, pld in syd.get("planets", {}).items():
                 for x in pld.get("resources", []):
-                    if is_poi(x):
-                        _prows.append({T("poi_col_name"): poiname(x), T("col_planet"): pl,
+                    if is_poi_like(x):
+                        _prows.append({T("poi_col_name"): poi_label(x), T("col_planet"): pl,
                                        T("col_system"): sy, T("col_sector"): rg})
     if not _prows:
         st.info(T("poi_empty"))
     else:
+        # filtre par type (utile : les epaves dominent en nombre vs les bases planetaires)
+        _types = sorted({d[T("poi_col_name")] for d in _prows})
+        _tf = st.multiselect(T("poi_type_filter"), _types, key="poi_typef")
+        if _tf:
+            _prows = [d for d in _prows if d[T("poi_col_name")] in _tf]
         _prows.sort(key=lambda d: (d[T("poi_col_name")], d[T("col_sector")], d[T("col_system")], d[T("col_planet")]))
         st.caption(T("poi_count").format(n=len(_prows)))
         st.dataframe(pd.DataFrame(_prows)[[T("poi_col_name"), T("col_planet"), T("col_system"), T("col_sector")]],
