@@ -17,6 +17,7 @@ import world_data
 import discoveries
 import cloud_store
 import steam_auth
+import market_data
 
 st.set_page_config(page_title="SpaceCraft - Rentabilite", page_icon="🚀", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -34,6 +35,11 @@ def load_sheets():
 @st.cache_data(show_spinner=False)
 def load_world(_schema_v=5):  # _schema_v : bump pour invalider le cache quand world_data change
     return world_data.build_world(cdb_model.load_cdb())
+
+
+@st.cache_data(show_spinner=False)
+def load_market():
+    return market_data.sell_index(cdb_model.load_cdb())
 
 
 @st.cache_data(show_spinner=False)
@@ -378,6 +384,16 @@ if _sel == "tab_items":
             st.dataframe(pd.DataFrame(_mine), hide_index=True, width="stretch", height=300)
         else:
             st.caption(T("item_mine_none"))
+
+        # --- Où vendre cet item (prix de rachat des stations, hors ventes scénarisées tuto) ---
+        _sell = load_market().get(_isel, [])
+        if _sell:
+            st.caption(T("item_sell_where"))
+            st.dataframe(pd.DataFrame([{T("col_station"): s["station"], T("item_sell_price"): s["sell"],
+                                        T("item_buy_price"): s["buy"]} for s in _sell]),
+                         hide_index=True, width="stretch",
+                         column_config={T("item_sell_price"): st.column_config.NumberColumn(format="%.2f"),
+                                        T("item_buy_price"): st.column_config.NumberColumn(format="%.2f")})
 
 if _sel == "tab_craftmap":
     st.caption(T("craftmap_help"))
