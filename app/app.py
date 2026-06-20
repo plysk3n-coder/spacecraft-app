@@ -192,6 +192,15 @@ _res_name = {l["id"]: l.get("name") for l in cdb_model._lines(load_sheets(), "re
 dep_name = lambda d: _rtr.get(d) or _res_name.get(d) or deposits.get(d, {}).get("name", d)
 # nom d'affichage : ressource traduite (langue) ; sinon nom anglais du cdb ; sinon item (compat) ; sinon id brut
 resname = lambda x: _rtr.get(x) or _res_name.get(x) or items.get(x, {}).get("name", x)
+# type de gisement (enum RESTYPE de world_data, en anglais) -> libellé traduit (termes génériques)
+_RESTYPE_TR = {
+    "Default": {"fr": "Standard", "en": "Default"}, "Gravite": {"fr": "Gravite", "en": "Gravite"},
+    "Node": {"fr": "Nodule", "en": "Node"}, "Deposit": {"fr": "Gisement", "en": "Deposit"},
+    "Shell": {"fr": "Coquille", "en": "Shell"}, "Geyser": {"fr": "Geyser", "en": "Geyser"},
+    "Pool": {"fr": "Bassin", "en": "Pool"}, "Biological": {"fr": "Biologique", "en": "Biological"},
+    "BiologicalRoot": {"fr": "Racine biologique", "en": "Biological root"},
+}
+restype_label = lambda t: _RESTYPE_TR.get(t, {}).get(lang, t)
 # options du multiselect = toutes les ressources minables (pas seulement les 70 avec items),
 # dedoublonnees par nom traduit (on garde l'id avec items, sinon le plus court -> evite les variantes _Big)
 _rec_ids = set(deposits) | set(_world0.get("minable", []))
@@ -419,7 +428,7 @@ if _sel == "tab_items":
                 continue
             for rg, sy, pl in discoveries.find_resource(map_data, _rid):
                 a = _abund2.get((rg, sy, pl, _rid), {})
-                _mine.append({T("col_deposit"): s.get("name"), T("col_sector"): rg, T("col_system"): sy,
+                _mine.append({T("col_deposit"): resname(_rid), T("col_sector"): rg, T("col_system"): sy,
                               T("col_planet"): pl, T("col_count"): a.get("count"),
                               T("col_density"): a.get("density"), T("col_bodytype"): body_label(a.get("body_type"))})
         if _mine:
@@ -558,7 +567,7 @@ if _sel == "tab_where":
         ca, cb = st.columns(2)
         with ca:
             st.subheader(T("where_mined"))
-            st.dataframe(pd.DataFrame([{T("col_deposit"): s["name"], T("col_type"): s["type"],
+            st.dataframe(pd.DataFrame([{T("col_deposit"): resname(s.get("res")), T("col_type"): restype_label(s["type"]),
                                         T("col_tier"): s["tier"], T("col_proba"): s["proba"],
                                         T("col_minlvl"): str(w.get("mining_res", {}).get(s.get("res")) or "—")} for s in srcs]),
                          hide_index=True, width="stretch")
@@ -573,7 +582,7 @@ if _sel == "tab_where":
 
         # Croisement avec les decouvertes (carte communautaire) : un item provient de
         # gisements (res ids) ; on liste les systemes/planetes ou ces gisements ont ete trouves.
-        res_names = {s["res"]: s["name"] for s in srcs if s.get("res")}
+        res_names = {s["res"]: resname(s["res"]) for s in srcs if s.get("res")}
         _abund = discoveries.abundance_map(fetch_shared()) if shared else {}
         found = []
         for rid, dname in res_names.items():
