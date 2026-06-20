@@ -452,7 +452,6 @@ if _sel == "tab_items":
                                         T("item_buy_price"): st.column_config.NumberColumn(format="%.2f")})
 
 if _sel == "tab_craftmap":
-    st.caption(T("craftmap_help"))
     sheets = load_sheets()
     prods = graph_data.craftable_products(sheets, items)
     plabel = {i: items.get(i, {}).get("name", i) for i in prods}
@@ -461,6 +460,8 @@ if _sel == "tab_craftmap":
     depth = cc[1].slider(T("depth"), 1, 8, 4)
     qtymake = cc[2].number_input(T("make_qty"), min_value=1, value=1, step=1)
     cmode = cc[3].radio(T("view"), ["v_table", "v_graph"], format_func=T, key="cmode")
+    # aide adaptée à la vue : le tableau (recettes/options) vs le graphe interactif
+    st.caption(T("craftmap_help") if cmode == "v_graph" else T("craftmap_help_table"))
 
     _allrec = graph_data.all_prod_recipes(sheets)
     _best = graph_data.best_recipes(sheets, items)

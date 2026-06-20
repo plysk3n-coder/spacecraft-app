@@ -329,6 +329,8 @@ UI = {
     "col_detail":   {"fr": "Détail", "en": "Detail"},
     "craftmap_help":{"fr": "Remonte la chaîne de production : ingrédients → sous-composants → matières brutes. 🔴 produit · 🔵 intermédiaire · 🟢 brut. Glisse les nœuds, zoome, survole pour le prix.",
                      "en": "Walks the production chain: ingredients → sub-components → raw materials. 🔴 product · 🔵 intermediate · 🟢 raw. Drag nodes, zoom, hover for price."},
+    "craftmap_help_table": {"fr": "Détail de la chaîne de craft, mis à l'échelle de la quantité. Un tableau par recette du produit (✅ = la moins chère) ; chaque sous-composant à plusieurs recettes se déplie en Options A/B/C. Le curseur Profondeur règle le niveau de détail.",
+                            "en": "Craft chain breakdown, scaled to your quantity. One table per product recipe (✅ = cheapest); each sub-component with several recipes expands into Options A/B/C. The Depth slider controls detail."},
     "universe_help":{"fr": "Structure du jeu : 🟣 Secteur → 🟢 Système → 🔵 Planète / 🟠 Station. (Positions non géographiques — le jeu génère la carte procéduralement.)",
                      "en": "Game structure: 🟣 Sector → 🟢 System → 🔵 Planet / 🟠 Station. (Not geographic — the game generates the map procedurally.)"},
     "search_recipe":{"fr": "🔎 Rechercher (produit ou ingrédient)", "en": "🔎 Search (product or ingredient)"},
