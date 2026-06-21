@@ -845,13 +845,24 @@ if _sel == "tab_deposits":
             _sel_names = st.multiselect(T("dep_select"), sorted(_lab.keys()), key="dep_sel")
         with c2:
             _secf = st.multiselect(T("dep_sector_filter"), sorted(map_data["regions"].keys()), key="dep_secf")
+        # ET = planètes ayant TOUS les gisements sélectionnés (intersection) ; OU = au moins un (union)
+        _and = st.radio(T("dep_match"), [T("dep_match_all"), T("dep_match_any")],
+                        horizontal=True, key="dep_match") == T("dep_match_all")
         if _sel_names:
             _abund = discoveries.abundance_map(fetch_shared()) if shared else {}
+            # localisations (secteur, système, planète) par gisement, filtrées secteur
+            _locs = {}
+            for nm in _sel_names:
+                rid = _lab[nm]
+                _locs[nm] = {(rg, sy, pl) for rg, sy, pl in discoveries.find_resource(map_data, rid)
+                             if not (_secf and rg not in _secf)}
+            _sets = list(_locs.values())
+            _keep = set.intersection(*_sets) if _and else set.union(*_sets)  # planètes à garder
             _rows = []
             for nm in _sel_names:
                 rid = _lab[nm]
-                for rg, sy, pl in discoveries.find_resource(map_data, rid):
-                    if _secf and rg not in _secf:
+                for (rg, sy, pl) in _locs[nm]:
+                    if (rg, sy, pl) not in _keep:
                         continue
                     a = _abund.get((rg, sy, pl, rid), {})
                     _rows.append({T("col_deposit"): nm, T("col_sector"): rg, T("col_system"): sy,
@@ -859,9 +870,15 @@ if _sel == "tab_deposits":
                                   T("col_density"): a.get("density"),
                                   T("col_bodytype"): body_label(a.get("body_type"))})
             if _rows:
-                _rows.sort(key=lambda d: (-(d[T("col_count")] or 0), d[T("col_sector")],
-                                          d[T("col_system")], d[T("col_planet")]))
-                st.caption(T("dep_count").format(n=len(_rows)))
+                if _and:
+                    # regroupe par planète (toutes ses lignes adjacentes) puis par gisement
+                    _rows.sort(key=lambda d: (d[T("col_sector")], d[T("col_system")],
+                                              d[T("col_planet")], d[T("col_deposit")]))
+                    st.caption(T("dep_count_and").format(n=len(_keep), k=len(_sel_names)))
+                else:
+                    _rows.sort(key=lambda d: (-(d[T("col_count")] or 0), d[T("col_sector")],
+                                              d[T("col_system")], d[T("col_planet")]))
+                    st.caption(T("dep_count").format(n=len(_rows)))
                 st.dataframe(pd.DataFrame(_rows), hide_index=True, width="stretch", height=560)
             else:
                 st.info(T("dep_none"))
