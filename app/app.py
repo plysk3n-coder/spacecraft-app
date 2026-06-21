@@ -525,15 +525,28 @@ if _sel == "tab_galaxymap":
             _plopts = sorted(_d["planets"].keys())
             _plpick = st.selectbox(T("gmap_planet"), [T("gmap_all_planets")] + _plopts, key="gmap_pl")
             _icons = load_res_icons()
-            _planets = []
-            for _pl in _plopts:
-                if _plpick != T("gmap_all_planets") and _pl != _plpick:
-                    continue
-                _rws = [(_r, _amap.get((_d["sector"], _d["sysname"], _pl, _r), {}).get("count"),
-                         _amap.get((_d["sector"], _d["sysname"], _pl, _r), {}).get("density"))
-                        for _r in _d["planets"][_pl] if not is_poi(_r)]
-                if _rws:
-                    _planets.append((_pl, _rws))
+            if _plpick == T("gmap_all_planets"):
+                # AGRÉGÉ : somme des quantités par gisement sur tout le système (densité = meilleur spot)
+                _agg = {}
+                for _pl in _plopts:
+                    for _r in _d["planets"][_pl]:
+                        if is_poi(_r):
+                            continue
+                        _ab = _amap.get((_d["sector"], _d["sysname"], _pl, _r), {})
+                        _c, _dn = _ab.get("count"), _ab.get("density")
+                        _e = _agg.setdefault(_r, {"c": 0, "has": False, "d": None})
+                        if isinstance(_c, (int, float)):
+                            _e["c"] += _c; _e["has"] = True
+                        if isinstance(_dn, (int, float)) and (_e["d"] is None or _dn > _e["d"]):
+                            _e["d"] = _dn
+                _rws = [(_r, (_e["c"] if _e["has"] else None), _e["d"]) for _r, _e in _agg.items()]
+                _planets = [(_pick, _rws)] if _rws else []
+            else:
+                # DÉTAIL d'une planète précise
+                _rws = [(_r, _amap.get((_d["sector"], _d["sysname"], _plpick, _r), {}).get("count"),
+                         _amap.get((_d["sector"], _d["sysname"], _plpick, _r), {}).get("density"))
+                        for _r in _d["planets"].get(_plpick, []) if not is_poi(_r)]
+                _planets = [(_plpick, _rws)] if _rws else []
             if _planets:
                 st.markdown(res_view.render(_planets, resname, restype_label, _icons,
                                             T("col_count"), T("col_density")), unsafe_allow_html=True)
