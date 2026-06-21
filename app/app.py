@@ -526,12 +526,8 @@ if _sel == "tab_galaxymap":
         st.session_state["_gmap_lastclick"] = _clicked
         st.session_state["gmap_sys"] = _clicked          # pré-remplit le sélecteur ci-dessous
         st.session_state["_gmap_scroll"] = True
-    st.html("<div id='gmap-detail'></div>")
+    st.html("<div id='gmap-detail' style='scroll-margin-top:55px'></div>")
     _pick = st.selectbox(T("gmap_system"), ["—"] + _sysnames, key="gmap_sys")
-    if st.session_state.pop("_gmap_scroll", False):
-        st.html("<script>setTimeout(function(){var e=document.getElementById('gmap-detail');"
-                "if(e){e.scrollIntoView({behavior:'smooth',block:'start'});}},200);</script>",
-                unsafe_allow_javascript=True)
     if _pick != "—":
         _d = _sysmap.get(_pick.lower())
         if not _d or not _d["planets"]:
@@ -581,6 +577,12 @@ if _sel == "tab_galaxymap":
                                                      T("ingots_title"), T("ingots_via")), unsafe_allow_html=True)
             else:
                 st.info(T("gmap_sys_empty"))
+    # scroll auto vers le détail après un clic : un <script> via st.html ne s'exécute pas ->
+    # mini-iframe (components.html) qui scrolle la PAGE PARENTE (window.parent), méthode fiable.
+    if st.session_state.pop("_gmap_scroll", False):
+        import streamlit.components.v1 as _comp
+        _comp.html("<script>var e=window.parent.document.getElementById('gmap-detail');"
+                   "if(e){e.scrollIntoView({behavior:'smooth',block:'start'});}</script>", height=0)
 
 if _sel == "tab_recipes":
     c = st.columns([2, 1, 1, 1])
