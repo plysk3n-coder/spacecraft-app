@@ -49,9 +49,11 @@ def _rgba(hexc, a):
     return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{a})"
 
 
-def build_figure(rd, node_meta, colors, focus_sector=None, height=720):
+def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, height=720):
     """rd = haronex_routes.json (systems/edges). node_meta = {sid: {hover:str, disc:bool}}.
-    colors = {sector: hex}. focus_sector = secteur à isoler (zoom) ou None."""
+    colors = {sector: hex}. focus_sector = secteur à isoler (zoom) ou None.
+    highlight = set de sids à mettre en avant (filtre ressource) ; les autres sont estompés.
+    None = pas de filtre (rendu par secteur, cerclé si découvertes)."""
     import plotly.graph_objects as go
 
     systems = rd["systems"]
@@ -94,18 +96,35 @@ def build_figure(rd, node_meta, colors, focus_sector=None, height=720):
                                  textfont=dict(color="rgba(230,230,230,0.55)", size=12),
                                  hoverinfo="skip", showlegend=False))
 
-    # 3) systèmes — une trace par secteur (légende cliquable). Plus gros + cerclé si découvertes.
+    hl = highlight  # None = pas de filtre ; sinon set de sids à mettre en avant
+    # 3a) systèmes ESTOMPÉS (hors filtre ressource) — une seule trace grise
+    if hl is not None:
+        dx, dy, dt = [], [], []
+        for sid, s in show.items():
+            if sid in hl:
+                continue
+            dx.append(s["x"]); dy.append(s["y"])
+            dt.append(node_meta.get(sid, {}).get("hover") or s["name"])
+        if dx:
+            fig.add_trace(go.Scatter(x=dx, y=dy, mode="markers", showlegend=False,
+                                     marker=dict(size=5, color="rgba(120,120,135,0.30)"),
+                                     hovertext=dt, hovertemplate="%{hovertext}<extra></extra>"))
+    # 3b) systèmes MIS EN AVANT (ou tous si pas de filtre) — une trace par secteur (légende).
     for sec in sorted(by_sec):
         col = colors.get(sec, "#888888")
         xs, ys, sizes, widths, texts = [], [], [], [], []
         for sid, s in show.items():
             if (s.get("sector") or "?") != sec:
                 continue
+            if hl is not None and sid not in hl:
+                continue
             m = node_meta.get(sid, {})
             xs.append(s["x"]); ys.append(s["y"])
-            disc = m.get("disc")
-            sizes.append(12 if disc else 6)
-            widths.append(2 if disc else 0)
+            if hl is not None:
+                sizes.append(13); widths.append(2)              # correspond au filtre
+            else:
+                disc = m.get("disc")
+                sizes.append(12 if disc else 6); widths.append(2 if disc else 0)
             texts.append(m.get("hover") or s["name"])
         if not xs:
             continue

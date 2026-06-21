@@ -363,9 +363,51 @@ if _sel == "tab_galaxymap":
                        "disc": bool(_disc and _disc["planets"])}
     _sectors = {_s.get("sector") for _s in _systems.values() if _s.get("sector")}
     _colors = galaxy_map.sector_colors(_sectors)
-    _secsel = st.selectbox(T("gmap_sector"), [T("gmap_all")] + sorted(_sectors), key="gmap_sec")
+    _amap = discoveries.abundance_map(fetch_shared()) if shared else {}
+    # compteur de localisations par ressource (façon spacecraft.tools : "Nom (N spots)")
+    _rescount = {}
+    for _rg, _rgd in map_data["regions"].items():
+        for _sy, _syd in _rgd.get("systems", {}).items():
+            for _pl, _pld in _syd.get("planets", {}).items():
+                for _r in _pld.get("resources", []):
+                    if not is_poi(_r):
+                        _rescount[_r] = _rescount.get(_r, 0) + 1
+    _resopts = sorted(_rescount, key=lambda r: resname(r))
+    _c1, _c2, _c3 = st.columns([2, 3, 2])
+    _secsel = _c1.selectbox(T("gmap_sector"), [T("gmap_all")] + sorted(_sectors), key="gmap_sec")
     _focus = None if _secsel == T("gmap_all") else _secsel
-    st.plotly_chart(galaxy_map.build_figure(_rd, _meta, _colors, _focus),
+    _rsel = _c2.multiselect(T("gmap_res"), _resopts,
+                            format_func=lambda r: f"{resname(r)} ({_rescount.get(r, 0)})", key="gmap_res")
+    # densité min : actif seulement si un filtre ressource est posé ET qu'on a des densités
+    _maxd = max((_v.get("density") for _k, _v in _amap.items()
+                 if _rsel and _k[3] in _rsel and isinstance(_v.get("density"), (int, float))), default=0)
+    _dens = _c3.slider(T("gmap_density"), 0.0, float(_maxd), 0.0, key="gmap_dens") if (_rsel and _maxd > 0) else 0
+    # highlight = systèmes routés ayant ≥1 planète avec une ressource sélectionnée (densité ≥ seuil)
+    _hlset = None
+    if _rsel:
+        _want = set(_rsel)
+        _name2sid = {_s["name"].lower(): _sid for _sid, _s in _systems.items()}
+        _hlset = set()
+        for _rg, _rgd in map_data["regions"].items():
+            for _sy, _syd in _rgd.get("systems", {}).items():
+                _ok = False
+                for _pl, _pld in _syd.get("planets", {}).items():
+                    for _r in _pld.get("resources", []):
+                        if _r in _want:
+                            if _dens > 0:
+                                _dv = _amap.get((_rg, _sy, _pl, _r), {}).get("density")
+                                if not (isinstance(_dv, (int, float)) and _dv >= _dens):
+                                    continue
+                            _ok = True
+                            break
+                    if _ok:
+                        break
+                if _ok:
+                    _sid2 = _name2sid.get(_sy.lower())
+                    if _sid2:
+                        _hlset.add(_sid2)
+        st.caption(T("gmap_match").format(n=len(_hlset)))
+    st.plotly_chart(galaxy_map.build_figure(_rd, _meta, _colors, _focus, _hlset),
                     width="stretch",
                     config={"scrollZoom": True, "displayModeBar": False})
     # détail au « clic » = selectbox système -> ressources par planète (Streamlit ne capte pas
@@ -378,7 +420,6 @@ if _sel == "tab_galaxymap":
         if not _d or not _d["planets"]:
             st.info(T("gmap_sys_empty"))
         else:
-            _amap = discoveries.abundance_map(fetch_shared()) if shared else {}
             _rows2 = []
             for _pl, _res in _d["planets"].items():
                 for _r in _res:
