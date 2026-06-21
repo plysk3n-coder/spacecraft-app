@@ -375,15 +375,17 @@ if _sel == "tab_galaxymap":
                     if not is_poi(_r):
                         _rescount[_r] = _rescount.get(_r, 0) + 1
     _resopts = sorted(_rescount, key=lambda r: resname(r))
-    _c1, _c2, _c3 = st.columns([2, 3, 2])
+    _c1, _c2, _c3, _c4 = st.columns([2, 3, 2, 2])
     _secsel = _c1.selectbox(T("gmap_sector"), [T("gmap_all")] + sorted(_sectors), key="gmap_sec")
     _focus = None if _secsel == T("gmap_all") else _secsel
     _rsel = _c2.multiselect(T("gmap_res"), _resopts,
                             format_func=lambda r: f"{resname(r)} ({_rescount.get(r, 0)})", key="gmap_res")
-    # densité min : actif seulement si un filtre ressource est posé ET qu'on a des densités
-    _maxd = max((_v.get("density") for _k, _v in _amap.items()
-                 if _rsel and _k[3] in _rsel and isinstance(_v.get("density"), (int, float))), default=0)
+    # seuils min densité / quantité : actifs seulement si un filtre ressource est posé ET que la donnée existe
+    _seld = [_v for _k, _v in _amap.items() if _rsel and _k[3] in _rsel]
+    _maxd = max((_v.get("density") for _v in _seld if isinstance(_v.get("density"), (int, float))), default=0)
+    _maxq = max((_v.get("count") for _v in _seld if isinstance(_v.get("count"), (int, float))), default=0)
     _dens = _c3.slider(T("gmap_density"), 0.0, float(_maxd), 0.0, key="gmap_dens") if (_rsel and _maxd > 0) else 0
+    _qty = _c4.slider(T("gmap_qty"), 0, int(_maxq), 0, key="gmap_qty") if (_rsel and _maxq > 0) else 0
     # highlight = systèmes routés ayant ≥1 planète avec une ressource sélectionnée (densité ≥ seuil)
     _hlset = None
     if _rsel:
@@ -395,9 +397,12 @@ if _sel == "tab_galaxymap":
                 for _pl, _pld in _syd.get("planets", {}).items():
                     for _r in _pld.get("resources", []):
                         if _r in _want:
-                            if _dens > 0:
-                                _dv = _amap.get((_rg, _sy, _pl, _r), {}).get("density")
-                                if not (isinstance(_dv, (int, float)) and _dv >= _dens):
+                            if _dens > 0 or _qty > 0:
+                                _ab = _amap.get((_rg, _sy, _pl, _r), {})
+                                _dv, _cv = _ab.get("density"), _ab.get("count")
+                                if _dens > 0 and not (isinstance(_dv, (int, float)) and _dv >= _dens):
+                                    continue
+                                if _qty > 0 and not (isinstance(_cv, (int, float)) and _cv >= _qty):
                                     continue
                             _ok = True
                             break

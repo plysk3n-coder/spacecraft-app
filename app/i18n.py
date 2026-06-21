@@ -74,6 +74,7 @@ UI = {
     "gmap_sys_empty": {"fr": "Pas encore de ressources en base pour ce système.", "en": "No resources recorded yet for this system."},
     "gmap_res":     {"fr": "Filtrer par ressource", "en": "Filter by resource"},
     "gmap_density": {"fr": "Densité minimale", "en": "Minimum density"},
+    "gmap_qty":     {"fr": "Quantité minimale", "en": "Minimum quantity"},
     "gmap_match":   {"fr": "🎯 {n} systèmes correspondent (les autres sont estompés)", "en": "🎯 {n} matching systems (others dimmed)"},
     "gmap_route_title": {"fr": "🧭 Planificateur de route", "en": "🧭 Route planner"},
     "gmap_route_mode": {"fr": "Destination", "en": "Destination"},
