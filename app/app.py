@@ -498,8 +498,12 @@ if _sel == "tab_galaxymap":
         if not _d or not _d["planets"]:
             st.info(T("gmap_sys_empty"))
         else:
+            _plopts = sorted(_d["planets"].keys())
+            _plpick = st.selectbox(T("gmap_planet"), [T("gmap_all_planets")] + _plopts, key="gmap_pl")
             _rows2 = []
             for _pl, _res in _d["planets"].items():
+                if _plpick != T("gmap_all_planets") and _pl != _plpick:
+                    continue
                 for _r in _res:
                     _ab = _amap.get((_d["sector"], _d["sysname"], _pl, _r), {})
                     _rows2.append({T("col_planet"): _pl, T("mm_col_res"): itemname(_r),

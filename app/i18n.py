@@ -70,6 +70,8 @@ UI = {
     "gmap_sector":  {"fr": "Secteur (zoom)", "en": "Sector (zoom)"},
     "gmap_all":     {"fr": "Tous les secteurs", "en": "All sectors"},
     "gmap_system":  {"fr": "Détail d'un système", "en": "System detail"},
+    "gmap_planet":  {"fr": "Planète", "en": "Planet"},
+    "gmap_all_planets": {"fr": "Toutes les planètes", "en": "All planets"},
     "gmap_no_disc": {"fr": "Aucune découverte en base", "en": "No discoveries on record"},
     "gmap_sys_empty": {"fr": "Pas encore de ressources en base pour ce système.", "en": "No resources recorded yet for this system."},
     "gmap_res":     {"fr": "Filtrer par ressource", "en": "Filter by resource"},
