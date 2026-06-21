@@ -50,7 +50,7 @@ def _rgba(hexc, a):
 
 
 def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, route=None,
-                 stations=None, station_label="Stations", height=720):
+                 stations=None, station_label="Stations", show_labels=False, height=720):
     """rd = haronex_routes.json (systems/edges). node_meta = {sid: {hover:str, disc:bool}}.
     colors = {sector: hex}. focus_sector = secteur à isoler (zoom) ou None.
     highlight = set de sids à mettre en avant (filtre ressource) ; les autres sont estompés.
@@ -119,7 +119,7 @@ def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, route
     # 3b) systèmes MIS EN AVANT (ou tous si pas de filtre) — une trace par secteur (légende).
     for sec in sorted(by_sec):
         col = colors.get(sec, "#888888")
-        xs, ys, sizes, widths, texts = [], [], [], [], []
+        xs, ys, sizes, widths, texts, names = [], [], [], [], [], []
         for sid, s in show.items():
             if (s.get("sector") or "?") != sec:
                 continue
@@ -133,10 +133,13 @@ def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, route
                 disc = m.get("disc")
                 sizes.append(12 if disc else 6); widths.append(2 if disc else 0)
             texts.append(m.get("hover") or s["name"])
+            names.append(s["name"])
         if not xs:
             continue
         fig.add_trace(go.Scatter(
-            x=xs, y=ys, mode="markers", name=sec,
+            x=xs, y=ys, mode=("markers+text" if show_labels else "markers"), name=sec,
+            text=(names if show_labels else None), textposition="top center",
+            textfont=dict(size=9, color="rgba(235,235,235,0.85)"),
             marker=dict(size=sizes, color=col,
                         line=dict(color="rgba(255,255,255,0.9)", width=widths)),
             hovertext=texts, hovertemplate="%{hovertext}<extra></extra>"))

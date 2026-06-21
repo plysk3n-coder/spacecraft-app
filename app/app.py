@@ -482,8 +482,10 @@ if _sel == "tab_galaxymap":
                     _pn = " → ".join(_systems[s]["name"] for s in _route)
                     st.success(T("gmap_route_target").format(sys=_systems[_sp["target"]]["name"], res=resname(_rres)))
                     st.success(T("gmap_route_result").format(n=_sp["hops"], c=round(_sp["cost"]), path=_pn))
+    _labels = st.checkbox(T("gmap_labels"), value=bool(_focus), key="gmap_labels",
+                          help=T("gmap_labels_help"))
     st.plotly_chart(galaxy_map.build_figure(_rd, _meta, _colors, _focus, _hlset, _route,
-                                            _stations, T("gmap_stations")),
+                                            _stations, T("gmap_stations"), show_labels=_labels),
                     width="stretch",
                     config={"scrollZoom": True, "displayModeBar": False})
     # détail au « clic » = selectbox système -> ressources par planète (Streamlit ne capte pas
