@@ -49,6 +49,16 @@ def load_routes():
 
 
 @st.cache_data(show_spinner=False)
+def load_res_icons():
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "res_icons.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+@st.cache_data(show_spinner=False)
 def load(overrides_key, lang):
     sheets = cdb_model.load_cdb()
     tr = i18n.load_translations(lang)
@@ -498,18 +508,24 @@ if _sel == "tab_galaxymap":
         if not _d or not _d["planets"]:
             st.info(T("gmap_sys_empty"))
         else:
+            import res_view
             _plopts = sorted(_d["planets"].keys())
             _plpick = st.selectbox(T("gmap_planet"), [T("gmap_all_planets")] + _plopts, key="gmap_pl")
-            _rows2 = []
-            for _pl, _res in _d["planets"].items():
+            _icons = load_res_icons()
+            _planets = []
+            for _pl in _plopts:
                 if _plpick != T("gmap_all_planets") and _pl != _plpick:
                     continue
-                for _r in _res:
-                    _ab = _amap.get((_d["sector"], _d["sysname"], _pl, _r), {})
-                    _rows2.append({T("col_planet"): _pl, T("mm_col_res"): itemname(_r),
-                                   T("col_count"): _ab.get("count"), T("col_density"): _ab.get("density")})
-            _rows2.sort(key=lambda x: (x[T("col_planet")], -(x[T("col_count")] or 0)))
-            st.dataframe(pd.DataFrame(_rows2), hide_index=True, width="stretch")
+                _rws = [(_r, _amap.get((_d["sector"], _d["sysname"], _pl, _r), {}).get("count"),
+                         _amap.get((_d["sector"], _d["sysname"], _pl, _r), {}).get("density"))
+                        for _r in _d["planets"][_pl] if not is_poi(_r)]
+                if _rws:
+                    _planets.append((_pl, _rws))
+            if _planets:
+                st.markdown(res_view.render(_planets, resname, restype_label, _icons,
+                                            T("col_count"), T("col_density")), unsafe_allow_html=True)
+            else:
+                st.info(T("gmap_sys_empty"))
 
 if _sel == "tab_recipes":
     c = st.columns([2, 1, 1, 1])
