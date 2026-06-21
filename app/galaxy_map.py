@@ -136,6 +136,7 @@ def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, heigh
 
     fig.update_layout(
         height=height, paper_bgcolor="#0e1117", plot_bgcolor="#0e1117",
+        dragmode="pan",  # clic-gauche = déplacer (le zoom reste à la molette via scrollZoom)
         margin=dict(l=0, r=0, t=0, b=0),
         legend=dict(font=dict(color="#ddd", size=11), bgcolor="rgba(0,0,0,0)",
                     itemsizing="constant"),
