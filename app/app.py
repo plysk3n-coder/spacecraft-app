@@ -5,7 +5,6 @@ import streamlit as st
 import extra_streamlit_components as stx
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import streamlit.components.v1 as components
 import cdb_model
 import extract_cdb
 import i18n
@@ -752,10 +751,10 @@ if _sel == "tab_craftmap":
             st.markdown(_head)
             _ot = graph_data.options_tree(sheets, items, sel_prod, _ins, out_qty=_oq, root_where=_where,
                                           qty=qtymake, allrec=_allrec, best=_best, max_depth=depth)
-            components.html(_tree_html(_ot), height=min(650, max(120, len(_ot) * 26 + 24)), scrolling=True)
+            st.html(_tree_html(_ot))
     else:
         nodes, edges = graph_data.craft_chain(sheets, items, sel_prod, max_depth=depth)
-        components.html(graph_data.to_html(nodes, edges, height="560px", hierarchical=True, direction="DU"), height=580)
+        st.html(graph_data.to_html(nodes, edges, height="560px", hierarchical=True, direction="DU"), unsafe_allow_javascript=True)
 
     st.subheader(T("raw_title"))
     raw = graph_data.raw_materials(sheets, items, sel_prod, qty=qtymake)
@@ -840,7 +839,7 @@ if _sel == "tab_universe":
                     n_disc += 1
         if n_disc:
             st.caption(T("u_disc_legend"))
-        components.html(graph_data.to_html(nodes, edges, height="640px", hierarchical=True, direction="UD"), height=660)
+        st.html(graph_data.to_html(nodes, edges, height="640px", hierarchical=True, direction="UD"), unsafe_allow_javascript=True)
 
 if _sel == "tab_where":
     st.caption(T("where_help"))
@@ -1104,14 +1103,14 @@ if _sel == "tab_permits":
                     T("permit_c_unlocks"): ", ".join(_pnodes[p]["unlocks"][:6]) + (" …" if len(_pnodes[p]["unlocks"]) > 6 else "")}
                     for p in _r["chain"]]), hide_index=True, width="stretch",
                     column_config={T("permit_c_cost"): st.column_config.NumberColumn(format="%d")})
-                components.html(permit_data.permit_html(_pnodes, _pedges, set(_r["chain"])), height=600)
+                st.html(permit_data.permit_html(_pnodes, _pedges, set(_r["chain"])), unsafe_allow_javascript=True)
             else:
                 st.info(T("permit_none"))
     else:
         _want = "corpo" if _pview == "permit_fam_corpo" else "tech"
         _fnodes = {pid: d for pid, d in _pnodes.items() if d["family"] == _want}
         _fedges = [(a, b) for a, b in _pedges if a in _fnodes and b in _fnodes]
-        components.html(permit_data.permit_html(_fnodes, _fedges, set()), height=720)
+        st.html(permit_data.permit_html(_fnodes, _fedges, set()), unsafe_allow_javascript=True)
 
 # --- Onglet CONTRATS / ÉCONOMIE : profit net = crédits − coût de production ---
 if _sel == "tab_contracts":
