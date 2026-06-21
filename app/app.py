@@ -435,12 +435,32 @@ if _sel == "tab_galaxymap":
         else:
             _rres = _rc2.selectbox(T("gmap_route_res"), ["—"] + _resopts, key="gmap_rres",
                                    format_func=lambda r: "—" if r == "—" else f"{resname(r)} ({_rescount.get(r, 0)})")
+            # seuils densité/quantité min sur la ressource cherchée (route vers un spot « assez riche »)
+            _rd2 = _rq2 = 0
+            if _rres != "—":
+                _sv2 = [_v for _k, _v in _amap.items() if _k[3] == _rres]
+                _md2 = max((_v.get("density") for _v in _sv2 if isinstance(_v.get("density"), (int, float))), default=0)
+                _mq2 = max((_v.get("count") for _v in _sv2 if isinstance(_v.get("count"), (int, float))), default=0)
+                _rk1, _rk2 = st.columns(2)
+                _rd2 = _rk1.slider(T("gmap_density"), 0.0, float(_md2), 0.0, key="gmap_rdens") if _md2 > 0 else 0
+                _rq2 = _rk2.slider(T("gmap_qty"), 0, int(_mq2), 0, key="gmap_rqty") if _mq2 > 0 else 0
             if _from != "—" and _rres != "—":
                 _tgt = set()
                 for _rg, _rgd in map_data["regions"].items():
                     for _sy, _syd in _rgd.get("systems", {}).items():
-                        if any(_rres in _pld.get("resources", [])
-                               for _pld in _syd.get("planets", {}).values()):
+                        _hit = False
+                        for _pl, _pld in _syd.get("planets", {}).items():
+                            if _rres in _pld.get("resources", []):
+                                if _rd2 > 0 or _rq2 > 0:
+                                    _ab = _amap.get((_rg, _sy, _pl, _rres), {})
+                                    _dv, _cv = _ab.get("density"), _ab.get("count")
+                                    if _rd2 > 0 and not (isinstance(_dv, (int, float)) and _dv >= _rd2):
+                                        continue
+                                    if _rq2 > 0 and not (isinstance(_cv, (int, float)) and _cv >= _rq2):
+                                        continue
+                                _hit = True
+                                break
+                        if _hit:
                             _sid3 = _name2sid.get(_sy.lower())
                             if _sid3:
                                 _tgt.add(_sid3)
