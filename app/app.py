@@ -285,7 +285,7 @@ world = w = _world0
 # (survit aux reruns ET au F5, comme rg/sy) + session_state via la clé du widget.
 _qp = st.query_params
 # Ordre des menus (exploration/carte d'abord, puis craft/économie, puis builders/progression).
-_keys = ["tab_where", "tab_deposits", "tab_mymap", "tab_poi", "tab_universe", "tab_routes",
+_keys = ["tab_where", "tab_deposits", "tab_mymap", "tab_galaxymap", "tab_poi", "tab_universe", "tab_routes",
          "tab_recipes", "tab_items", "tab_craftmap",
          "tab_ship", "tab_base", "tab_permits", "tab_contracts"]
 if admin:
@@ -329,6 +329,64 @@ if _sel == "tab_routes":
         _rows.sort(key=lambda d: (d[T("routes_col_cost")], d[T("routes_col_hops")]))
         st.caption(T("routes_count").format(n=len(_rows)))
         st.dataframe(pd.DataFrame(_rows), hide_index=True, width="stretch", height=560)
+
+if _sel == "tab_galaxymap":
+    import galaxy_map
+    st.caption(T("gmap_help"))
+    _rd = load_routes()
+    _systems = _rd["systems"]
+    # index des découvertes par nom de système (base communautaire) -> garde le nom EXACT stocké
+    _sysmap = {}
+    for _rg, _rgd in map_data["regions"].items():
+        for _sy, _syd in _rgd.get("systems", {}).items():
+            _e = _sysmap.setdefault(_sy.lower(), {"sector": _rg, "sysname": _sy, "planets": {}})
+            for _pl, _pld in _syd.get("planets", {}).items():
+                _lst = _e["planets"].setdefault(_pl, [])
+                for _r in _pld.get("resources", []):
+                    if _r not in _lst:
+                        _lst.append(_r)
+    # hover + flag « a des découvertes » par système routé
+    _meta = {}
+    for _sid, _s in _systems.items():
+        _disc = _sysmap.get(_s["name"].lower())
+        _hl = ["<b>%s</b>" % _s["name"], _s.get("sector") or ""]
+        if _disc and _disc["planets"]:
+            for _pl, _res in list(_disc["planets"].items())[:6]:
+                _rr = [resname(x) for x in _res if not is_poi(x)][:6]
+                _hl.append("• %s : %s" % (_pl, ", ".join(_rr) if _rr else "—"))
+            _more = len(_disc["planets"]) - 6
+            if _more > 0:
+                _hl.append("…+%d" % _more)
+        else:
+            _hl.append(T("gmap_no_disc"))
+        _meta[_sid] = {"hover": "<br>".join(x for x in _hl if x),
+                       "disc": bool(_disc and _disc["planets"])}
+    _sectors = {_s.get("sector") for _s in _systems.values() if _s.get("sector")}
+    _colors = galaxy_map.sector_colors(_sectors)
+    _secsel = st.selectbox(T("gmap_sector"), [T("gmap_all")] + sorted(_sectors), key="gmap_sec")
+    _focus = None if _secsel == T("gmap_all") else _secsel
+    st.plotly_chart(galaxy_map.build_figure(_rd, _meta, _colors, _focus),
+                    width="stretch",
+                    config={"scrollZoom": True, "displayModeBar": False})
+    # détail au « clic » = selectbox système -> ressources par planète (Streamlit ne capte pas
+    # le clic natif sur un nœud Plotly ; ce sélecteur joue ce rôle)
+    _sysnames = sorted(_s["name"] for _s in _systems.values()
+                       if not _focus or _s.get("sector") == _focus)
+    _pick = st.selectbox(T("gmap_system"), ["—"] + _sysnames, key="gmap_sys")
+    if _pick != "—":
+        _d = _sysmap.get(_pick.lower())
+        if not _d or not _d["planets"]:
+            st.info(T("gmap_sys_empty"))
+        else:
+            _amap = discoveries.abundance_map(fetch_shared()) if shared else {}
+            _rows2 = []
+            for _pl, _res in _d["planets"].items():
+                for _r in _res:
+                    _ab = _amap.get((_d["sector"], _d["sysname"], _pl, _r), {})
+                    _rows2.append({T("col_planet"): _pl, T("mm_col_res"): itemname(_r),
+                                   T("col_count"): _ab.get("count"), T("col_density"): _ab.get("density")})
+            _rows2.sort(key=lambda x: (x[T("col_planet")], -(x[T("col_count")] or 0)))
+            st.dataframe(pd.DataFrame(_rows2), hide_index=True, width="stretch")
 
 if _sel == "tab_recipes":
     c = st.columns([2, 1, 1, 1])
