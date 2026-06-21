@@ -40,6 +40,35 @@ def _card(img, name, qty, dens, cat, lab_q, lab_d):
     )
 
 
+def ingot_cards(planets, resname, icons, title, via_word):
+    """Section 'Lingots possibles' par planète. planets = [(nom, [(ingot_id, [noms_minerais]), ...])]."""
+    multi = len(planets) > 1
+    html = ['<div style="font-family:Inter,system-ui,sans-serif;">']
+    for pl, ings in planets:
+        if not ings:
+            continue
+        head = f'🔩 {_esc(title)}'
+        if multi:
+            head += f' — <span style="color:#fff;">{_esc(pl)}</span>'
+        html.append(f'<div style="color:#ffd479;font-weight:700;font-size:15px;margin:14px 0 2px;">{head}</div>')
+        html.append('<div style="display:flex;flex-wrap:wrap;">')
+        for iid, ores in sorted(ings, key=lambda x: resname(x[0])):
+            img = icons.get(iid, {}).get("img")
+            ico = (f'<img src="{img}" style="width:46px;height:46px;flex:0 0 46px;border-radius:6px;"/>'
+                   if img else '<div style="width:46px;height:46px;flex:0 0 46px;border-radius:6px;'
+                   'background:#2c3140;display:flex;align-items:center;justify-content:center;">🔩</div>')
+            sub = f'{_esc(via_word)} ' + ", ".join(_esc(resname(o)) for o in ores[:3]) if ores else "&nbsp;"
+            html.append(
+                '<div style="display:inline-flex;align-items:center;gap:11px;background:#1a1710;'
+                'border:1px solid #45391f;border-radius:11px;padding:9px 15px;margin:5px;min-width:235px;">'
+                f'{ico}<div style="line-height:1.3;">'
+                f'<div style="color:#f3e6c8;font-weight:600;font-size:14.5px;">{_esc(resname(iid))}</div>'
+                f'<div style="color:#a8966f;font-size:12px;">{sub}</div></div></div>')
+        html.append('</div>')
+    html.append('</div>')
+    return "".join(html)
+
+
 def render(planets, resname, cat_label, icons, lab_qty, lab_dens):
     """planets = liste ordonnée de (nom_planète, [(rid, count, density), ...]).
     resname(rid)->nom traduit ; cat_label(restype_en)->libellé traduit ; icons = res_icons.json."""

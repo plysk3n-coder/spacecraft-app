@@ -59,6 +59,19 @@ def load_res_icons():
 
 
 @st.cache_data(show_spinner=False)
+def load_ore2ingot():
+    """item-minerai -> [lingots] qu'on peut en faire (recettes dont un output contient 'Ingot')."""
+    o2i = {}
+    for c in cdb_model._lines(cdb_model.load_cdb(), "craft"):
+        ings = [o.get("item") for o in (c.get("outputs") or []) if (o.get("item") or "").find("Ingot") >= 0]
+        if ings:
+            for inp in (c.get("inputs") or []):
+                if inp.get("item"):
+                    o2i.setdefault(inp["item"], set()).update(ings)
+    return {k: sorted(v) for k, v in o2i.items()}
+
+
+@st.cache_data(show_spinner=False)
 def load(overrides_key, lang):
     sheets = cdb_model.load_cdb()
     tr = i18n.load_translations(lang)
@@ -524,6 +537,19 @@ if _sel == "tab_galaxymap":
             if _planets:
                 st.markdown(res_view.render(_planets, resname, restype_label, _icons,
                                             T("col_count"), T("col_density")), unsafe_allow_html=True)
+                # lingots faisables : minerais produits par les gisements de la planète -> lingots
+                _o2i = load_ore2ingot()
+                _ingp = []
+                for _pl, _rws in _planets:
+                    _found = {}
+                    for _rid, _, _ in _rws:
+                        for _ore in deposits.get(_rid, {}).get("items", []):
+                            for _ing in _o2i.get(_ore, []):
+                                _found.setdefault(_ing, set()).add(_ore)
+                    _ingp.append((_pl, [(_ing, sorted(_o)) for _ing, _o in _found.items()]))
+                if any(_i for _, _i in _ingp):
+                    st.markdown(res_view.ingot_cards(_ingp, resname, _icons,
+                                                     T("ingots_title"), T("ingots_via")), unsafe_allow_html=True)
             else:
                 st.info(T("gmap_sys_empty"))
 
