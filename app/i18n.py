@@ -75,6 +75,7 @@ UI = {
     "gmap_res":     {"fr": "Filtrer par ressource", "en": "Filter by resource"},
     "gmap_density": {"fr": "Densité minimale", "en": "Minimum density"},
     "gmap_qty":     {"fr": "Quantité minimale", "en": "Minimum quantity"},
+    "gmap_stations": {"fr": "🛰️ Stations", "en": "🛰️ Stations"},
     "gmap_match":   {"fr": "🎯 {n} systèmes correspondent (les autres sont estompés)", "en": "🎯 {n} matching systems (others dimmed)"},
     "gmap_route_title": {"fr": "🧭 Planificateur de route", "en": "🧭 Route planner"},
     "gmap_route_mode": {"fr": "Destination", "en": "Destination"},

@@ -49,11 +49,13 @@ def _rgba(hexc, a):
     return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{a})"
 
 
-def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, route=None, height=720):
+def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, route=None,
+                 stations=None, station_label="Stations", height=720):
     """rd = haronex_routes.json (systems/edges). node_meta = {sid: {hover:str, disc:bool}}.
     colors = {sector: hex}. focus_sector = secteur à isoler (zoom) ou None.
     highlight = set de sids à mettre en avant (filtre ressource) ; les autres sont estompés.
     route = liste ordonnée de sids (chemin FTL à tracer) ou None.
+    stations = {sid: [noms de stations]} -> marqués d'une étoile (légende dédiée).
     None = pas de filtre (rendu par secteur, cerclé si découvertes)."""
     import plotly.graph_objects as go
 
@@ -138,6 +140,19 @@ def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, route
             marker=dict(size=sizes, color=col,
                         line=dict(color="rgba(255,255,255,0.9)", width=widths)),
             hovertext=texts, hovertemplate="%{hovertext}<extra></extra>"))
+
+    # 3c) stations mises en évidence (étoile) — légende dédiée, par-dessus les systèmes
+    if stations:
+        sx, sy_, stext = [], [], []
+        for sid, names in stations.items():
+            if sid in show:
+                sx.append(show[sid]["x"]); sy_.append(show[sid]["y"])
+                stext.append("🛰️ <b>%s</b><br>%s" % (show[sid]["name"], ", ".join(names)))
+        if sx:
+            fig.add_trace(go.Scatter(x=sx, y=sy_, mode="markers", name=station_label,
+                                     marker=dict(symbol="star", size=15, color="#00e5ff",
+                                                 line=dict(color="#ffffff", width=1)),
+                                     hovertext=stext, hovertemplate="%{hovertext}<extra></extra>"))
 
     # 4) route FTL tracée par-dessus (chemin du planificateur) : ligne dorée + départ/arrivée
     rt = [sid for sid in (route or []) if sid in systems and systems[sid].get("x") is not None]

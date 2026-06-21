@@ -363,6 +363,16 @@ if _sel == "tab_galaxymap":
             _hl.append(T("gmap_no_disc"))
         _meta[_sid] = {"hover": "<br>".join(x for x in _hl if x),
                        "disc": bool(_disc and _disc["planets"])}
+    # systèmes ayant une station (POI:Station, le nom de la station = nom de la "planète" stockée)
+    _stations = {}
+    for _rg, _rgd in map_data["regions"].items():
+        for _sy, _syd in _rgd.get("systems", {}).items():
+            _stn = [_pl for _pl, _pld in _syd.get("planets", {}).items()
+                    if "POI:Station" in _pld.get("resources", [])]
+            if _stn:
+                _sid4 = _name2sid.get(_sy.lower())
+                if _sid4:
+                    _stations[_sid4] = _stn
     _sectors = {_s.get("sector") for _s in _systems.values() if _s.get("sector")}
     _colors = galaxy_map.sector_colors(_sectors)
     _amap = discoveries.abundance_map(fetch_shared()) if shared else {}
@@ -472,7 +482,8 @@ if _sel == "tab_galaxymap":
                     _pn = " → ".join(_systems[s]["name"] for s in _route)
                     st.success(T("gmap_route_target").format(sys=_systems[_sp["target"]]["name"], res=resname(_rres)))
                     st.success(T("gmap_route_result").format(n=_sp["hops"], c=round(_sp["cost"]), path=_pn))
-    st.plotly_chart(galaxy_map.build_figure(_rd, _meta, _colors, _focus, _hlset, _route),
+    st.plotly_chart(galaxy_map.build_figure(_rd, _meta, _colors, _focus, _hlset, _route,
+                                            _stations, T("gmap_stations")),
                     width="stretch",
                     config={"scrollZoom": True, "displayModeBar": False})
     # détail au « clic » = selectbox système -> ressources par planète (Streamlit ne capte pas
