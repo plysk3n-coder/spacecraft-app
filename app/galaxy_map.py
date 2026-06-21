@@ -106,16 +106,16 @@ def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, route
     hl = highlight  # None = pas de filtre ; sinon set de sids à mettre en avant
     # 3a) systèmes ESTOMPÉS (hors filtre ressource) — une seule trace grise
     if hl is not None:
-        dx, dy, dt = [], [], []
+        dx, dy, dt, dn = [], [], [], []
         for sid, s in show.items():
             if sid in hl:
                 continue
             dx.append(s["x"]); dy.append(s["y"])
-            dt.append(node_meta.get(sid, {}).get("hover") or s["name"])
+            dt.append(node_meta.get(sid, {}).get("hover") or s["name"]); dn.append(s["name"])
         if dx:
             fig.add_trace(go.Scatter(x=dx, y=dy, mode="markers", showlegend=False,
                                      marker=dict(size=5, color="rgba(120,120,135,0.30)"),
-                                     hovertext=dt, hovertemplate="%{hovertext}<extra></extra>"))
+                                     customdata=dn, hovertext=dt, hovertemplate="%{hovertext}<extra></extra>"))
     # 3b) systèmes MIS EN AVANT (ou tous si pas de filtre) — une trace par secteur (légende).
     for sec in sorted(by_sec):
         col = colors.get(sec, "#888888")
@@ -142,20 +142,21 @@ def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, route
             textfont=dict(size=9, color="rgba(235,235,235,0.85)"),
             marker=dict(size=sizes, color=col,
                         line=dict(color="rgba(255,255,255,0.9)", width=widths)),
-            hovertext=texts, hovertemplate="%{hovertext}<extra></extra>"))
+            customdata=names, hovertext=texts, hovertemplate="%{hovertext}<extra></extra>"))
 
     # 3c) stations mises en évidence (étoile) — légende dédiée, par-dessus les systèmes
     if stations:
-        sx, sy_, stext = [], [], []
-        for sid, names in stations.items():
+        sx, sy_, stext, scd = [], [], [], []
+        for sid, snames in stations.items():
             if sid in show:
                 sx.append(show[sid]["x"]); sy_.append(show[sid]["y"])
-                stext.append("🛰️ <b>%s</b><br>%s" % (show[sid]["name"], ", ".join(names)))
+                stext.append("🛰️ <b>%s</b><br>%s" % (show[sid]["name"], ", ".join(snames)))
+                scd.append(show[sid]["name"])
         if sx:
             fig.add_trace(go.Scatter(x=sx, y=sy_, mode="markers", name=station_label,
                                      marker=dict(symbol="star", size=15, color="#00e5ff",
                                                  line=dict(color="#ffffff", width=1)),
-                                     hovertext=stext, hovertemplate="%{hovertext}<extra></extra>"))
+                                     customdata=scd, hovertext=stext, hovertemplate="%{hovertext}<extra></extra>"))
 
     # 4) route FTL tracée par-dessus (chemin du planificateur) : ligne dorée + départ/arrivée
     rt = [sid for sid in (route or []) if sid in systems and systems[sid].get("x") is not None]
@@ -174,7 +175,7 @@ def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, route
               for i in range(len(rt))]
         fig.add_trace(go.Scatter(x=nx, y=ny, mode="markers", showlegend=False,
                                  marker=dict(size=15, color=nc, line=dict(color="#000", width=1.5)),
-                                 hovertext=nt, hovertemplate="%{hovertext}<extra></extra>"))
+                                 customdata=nt, hovertext=nt, hovertemplate="%{hovertext}<extra></extra>"))
 
     fig.update_layout(
         height=height, paper_bgcolor="#0e1117", plot_bgcolor="#0e1117",

@@ -506,15 +506,32 @@ if _sel == "tab_galaxymap":
                     st.success(T("gmap_route_result").format(n=_sp["hops"], c=round(_sp["cost"]), path=_pn))
     _labels = st.checkbox(T("gmap_labels"), value=bool(_focus), key="gmap_labels",
                           help=T("gmap_labels_help"))
-    st.plotly_chart(galaxy_map.build_figure(_rd, _meta, _colors, _focus, _hlset, _route,
-                                            _stations, T("gmap_stations"), show_labels=_labels),
-                    width="stretch",
-                    config={"scrollZoom": True, "displayModeBar": False})
-    # détail au « clic » = selectbox système -> ressources par planète (Streamlit ne capte pas
-    # le clic natif sur un nœud Plotly ; ce sélecteur joue ce rôle)
     _sysnames = sorted(_s["name"] for _s in _systems.values()
                        if not _focus or _s.get("sector") == _focus)
+    _event = st.plotly_chart(galaxy_map.build_figure(_rd, _meta, _colors, _focus, _hlset, _route,
+                                                     _stations, T("gmap_stations"), show_labels=_labels),
+                             key="gmap_map", on_select="rerun", selection_mode=("points",),
+                             width="stretch",
+                             config={"scrollZoom": True, "displayModeBar": False})
+    # clic sur un système (nœud Plotly) -> charge son détail ci-dessous + scrolle dessus
+    _clicked = None
+    try:
+        _pts = (_event.get("selection") or {}).get("points") or []
+        if _pts:
+            _cd = _pts[0].get("customdata")
+            _clicked = _cd[0] if isinstance(_cd, (list, tuple)) else _cd
+    except Exception:
+        _clicked = None
+    if _clicked and _clicked in _sysnames and _clicked != st.session_state.get("_gmap_lastclick"):
+        st.session_state["_gmap_lastclick"] = _clicked
+        st.session_state["gmap_sys"] = _clicked          # pré-remplit le sélecteur ci-dessous
+        st.session_state["_gmap_scroll"] = True
+    st.html("<div id='gmap-detail'></div>")
     _pick = st.selectbox(T("gmap_system"), ["—"] + _sysnames, key="gmap_sys")
+    if st.session_state.pop("_gmap_scroll", False):
+        st.html("<script>setTimeout(function(){var e=document.getElementById('gmap-detail');"
+                "if(e){e.scrollIntoView({behavior:'smooth',block:'start'});}},200);</script>",
+                unsafe_allow_javascript=True)
     if _pick != "—":
         _d = _sysmap.get(_pick.lower())
         if not _d or not _d["planets"]:
