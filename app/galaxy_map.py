@@ -49,10 +49,11 @@ def _rgba(hexc, a):
     return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{a})"
 
 
-def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, height=720):
+def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, route=None, height=720):
     """rd = haronex_routes.json (systems/edges). node_meta = {sid: {hover:str, disc:bool}}.
     colors = {sector: hex}. focus_sector = secteur à isoler (zoom) ou None.
     highlight = set de sids à mettre en avant (filtre ressource) ; les autres sont estompés.
+    route = liste ordonnée de sids (chemin FTL à tracer) ou None.
     None = pas de filtre (rendu par secteur, cerclé si découvertes)."""
     import plotly.graph_objects as go
 
@@ -60,6 +61,10 @@ def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, heigh
     show = {sid: s for sid, s in systems.items()
             if s.get("x") is not None
             and (not focus_sector or s.get("sector") == focus_sector)}
+    # une route doit rester entièrement visible même si elle sort du secteur filtré
+    for sid in (route or []):
+        if sid in systems and systems[sid].get("x") is not None and sid not in show:
+            show[sid] = systems[sid]
     fig = go.Figure()
 
     # 1) routes FTL (arêtes) — une seule trace, lignes grises fines
@@ -133,6 +138,25 @@ def build_figure(rd, node_meta, colors, focus_sector=None, highlight=None, heigh
             marker=dict(size=sizes, color=col,
                         line=dict(color="rgba(255,255,255,0.9)", width=widths)),
             hovertext=texts, hovertemplate="%{hovertext}<extra></extra>"))
+
+    # 4) route FTL tracée par-dessus (chemin du planificateur) : ligne dorée + départ/arrivée
+    rt = [sid for sid in (route or []) if sid in systems and systems[sid].get("x") is not None]
+    if len(rt) >= 2:
+        rx, ry = [], []
+        for a, b in zip(rt, rt[1:]):
+            rx += [systems[a]["x"], systems[b]["x"], None]
+            ry += [systems[a]["y"], systems[b]["y"], None]
+        fig.add_trace(go.Scatter(x=rx, y=ry, mode="lines", hoverinfo="skip", showlegend=False,
+                                 line=dict(color="#ffd000", width=3)))
+    if rt:
+        nx = [systems[s]["x"] for s in rt]
+        ny = [systems[s]["y"] for s in rt]
+        nt = [systems[s]["name"] for s in rt]
+        nc = ["#2ecc71" if i == 0 else ("#e74c3c" if i == len(rt) - 1 else "#ffd000")
+              for i in range(len(rt))]
+        fig.add_trace(go.Scatter(x=nx, y=ny, mode="markers", showlegend=False,
+                                 marker=dict(size=15, color=nc, line=dict(color="#000", width=1.5)),
+                                 hovertext=nt, hovertemplate="%{hovertext}<extra></extra>"))
 
     fig.update_layout(
         height=height, paper_bgcolor="#0e1117", plot_bgcolor="#0e1117",

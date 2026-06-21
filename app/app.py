@@ -335,6 +335,8 @@ if _sel == "tab_galaxymap":
     st.caption(T("gmap_help"))
     _rd = load_routes()
     _systems = _rd["systems"]
+    _name2sid = {_s["name"].lower(): _sid for _sid, _s in _systems.items()}
+    _allnames = sorted(_s["name"] for _s in _systems.values())
     # index des découvertes par nom de système (base communautaire) -> garde le nom EXACT stocké
     _sysmap = {}
     for _rg, _rgd in map_data["regions"].items():
@@ -386,7 +388,6 @@ if _sel == "tab_galaxymap":
     _hlset = None
     if _rsel:
         _want = set(_rsel)
-        _name2sid = {_s["name"].lower(): _sid for _sid, _s in _systems.items()}
         _hlset = set()
         for _rg, _rgd in map_data["regions"].items():
             for _sy, _syd in _rgd.get("systems", {}).items():
@@ -407,7 +408,46 @@ if _sel == "tab_galaxymap":
                     if _sid2:
                         _hlset.add(_sid2)
         st.caption(T("gmap_match").format(n=len(_hlset)))
-    st.plotly_chart(galaxy_map.build_figure(_rd, _meta, _colors, _focus, _hlset),
+    # 🧭 Planificateur de route (2 modes) — trace le chemin FTL le moins coûteux sur la carte
+    _route = None
+    with st.expander(T("gmap_route_title")):
+        import routes_data as _rdm
+        _adj = _rdm.adjacency(_rd)
+        _m1, _m2 = T("gmap_route_m1"), T("gmap_route_m2")
+        _mode = st.radio(T("gmap_route_mode"), [_m1, _m2], horizontal=True, key="gmap_rmode")
+        _rc1, _rc2 = st.columns(2)
+        _from = _rc1.selectbox(T("gmap_route_from"), ["—"] + _allnames, key="gmap_rfrom")
+        if _mode == _m1:
+            _to = _rc2.selectbox(T("gmap_route_to"), ["—"] + _allnames, key="gmap_rto")
+            if _from != "—" and _to != "—":
+                _sp = _rdm.shortest_path(_rd, _name2sid[_from.lower()], _name2sid[_to.lower()], _adj)
+                if not _sp:
+                    st.warning(T("gmap_route_none"))
+                else:
+                    _route = _sp["path"]
+                    _pn = " → ".join(_systems[s]["name"] for s in _route)
+                    st.success(T("gmap_route_result").format(n=_sp["hops"], c=round(_sp["cost"]), path=_pn))
+        else:
+            _rres = _rc2.selectbox(T("gmap_route_res"), ["—"] + _resopts, key="gmap_rres",
+                                   format_func=lambda r: "—" if r == "—" else f"{resname(r)} ({_rescount.get(r, 0)})")
+            if _from != "—" and _rres != "—":
+                _tgt = set()
+                for _rg, _rgd in map_data["regions"].items():
+                    for _sy, _syd in _rgd.get("systems", {}).items():
+                        if any(_rres in _pld.get("resources", [])
+                               for _pld in _syd.get("planets", {}).values()):
+                            _sid3 = _name2sid.get(_sy.lower())
+                            if _sid3:
+                                _tgt.add(_sid3)
+                _sp = _rdm.nearest_with(_rd, _name2sid[_from.lower()], _tgt, _adj) if _tgt else None
+                if not _sp:
+                    st.warning(T("gmap_route_nores"))
+                else:
+                    _route = _sp["path"]
+                    _pn = " → ".join(_systems[s]["name"] for s in _route)
+                    st.success(T("gmap_route_target").format(sys=_systems[_sp["target"]]["name"], res=resname(_rres)))
+                    st.success(T("gmap_route_result").format(n=_sp["hops"], c=round(_sp["cost"]), path=_pn))
+    st.plotly_chart(galaxy_map.build_figure(_rd, _meta, _colors, _focus, _hlset, _route),
                     width="stretch",
                     config={"scrollZoom": True, "displayModeBar": False})
     # détail au « clic » = selectbox système -> ressources par planète (Streamlit ne capte pas
